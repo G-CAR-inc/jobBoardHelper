@@ -2,12 +2,12 @@ import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { AxiosError, AxiosResponse } from 'axios';
 import { firstValueFrom, catchError } from 'rxjs';
-import { map } from 'rxjs/operators';
 
 @Injectable()
 export class DubizzleService implements OnModuleInit {
   private readonly logger = new Logger(DubizzleService.name);
   private currentSessionToken: string | null = null;
+  private currentRefreshToken: string | null = null;
 
   constructor(private readonly httpService: HttpService) {}
 
@@ -19,7 +19,7 @@ export class DubizzleService implements OnModuleInit {
     this.logger.log('Starting initial login process...');
     // The POST call is now correctly awaited
     const loginResponse = await this.login();
-    this.logger.log(loginResponse);
+    this.logger.log(loginResponse?.data);
     //   if (loginResponse) {
     //       // Assuming the response contains a session token or similar data
     //       this.currentSessionToken = loginResponse.data?.token || 'N/A';
@@ -54,10 +54,11 @@ export class DubizzleService implements OnModuleInit {
             }),
           ),
       );
-
-      // The 'response' object here is the full AxiosResponse object (status, headers, data)
+      const { refresh_token, access_token } = response.data as { refresh_token: string; access_token: string };
+      this.currentRefreshToken = refresh_token;
+      this.currentSessionToken = access_token;
       this.logger.log('Login request completed successfully.');
-      return response;
+      return { refresh_token, access_token };
     } catch (e) {
       // Handle specific error from the catchError pipe or generic issues
       this.logger.error('Failed to complete login request.', e.message);
