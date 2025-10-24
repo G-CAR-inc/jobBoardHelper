@@ -18,13 +18,12 @@ export class DubizzleService implements OnModuleInit {
   async onModuleInit() {
     this.logger.log('Starting initial login process...');
     // The POST call is now correctly awaited
-    const loginResponse = await this.login();
-    this.logger.log(loginResponse?.data);
-    //   if (loginResponse) {
-    //       // Assuming the response contains a session token or similar data
-    //       this.currentSessionToken = loginResponse.data?.token || 'N/A';
-    //       this.logger.log(`Initial login successful. Token acquired: ${this.currentSessionToken!.substring(0, 10)}...`);
-    //   }
+    // const loginResponse = await this.login();
+    // this.logger.log(loginResponse);
+    const refresh = await this.refreshAcessToken();
+    this.logger.log(refresh);
+    const vacancies=await this.getLiveVacancies();
+    this.logger.log(vacancies);
   }
 
   // Renamed to 'login' for clarity, reflecting the endpoint's purpose
@@ -36,7 +35,7 @@ export class DubizzleService implements OnModuleInit {
       // FIX IMPLEMENTED: Use firstValueFrom to convert the Observable to a Promise.
       const response: AxiosResponse = await firstValueFrom(
         this.httpService
-          .post('/en/auth/login/v6/', null, {
+          .get('/en/auth/login/v6/',{
             headers: {
               'Content-Type': 'application/json; charset=utf-8',
               // Corrected 'Coockie' typo to 'Cookie'
@@ -64,5 +63,63 @@ export class DubizzleService implements OnModuleInit {
       this.logger.error('Failed to complete login request.', e.message);
       return null;
     }
+  }
+  async refreshAcessToken() {
+    const reese84Cookie = process.env.reese84;
+    const access_token = process.env.access_token;
+    const refresh_token = process.env.refresh_token;
+    this.logger.log({ message: 'refreshing...', reese84Cookie, access_token, refresh_token });
+    const resp = await firstValueFrom(
+      this.httpService
+        .post('/en/auth/refresh_token/', null, {
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            // Corrected 'Coockie' typo to 'Cookie'
+            Cookie: `reese84=${reese84Cookie}`,
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+
+            'x-access-token': access_token,
+            'x-refresh-token': refresh_token,
+            Accept: 'application/json',
+          },
+        })
+        .pipe(
+          // Catch HTTP/network errors within the Observable pipe
+          catchError((error: AxiosError) => {
+            this.logger.error(`Login POST failed: ${error.message}`, error.stack);
+            // Throw an error to be caught by the outer try/catch block
+            throw new Error(`External login failed. Status: ${error.response?.status || 'Network Error'}`);
+          }),
+        ),
+    );
+    const tokens = resp.data as { refresh_token: string; access_token: string };
+    this.currentRefreshToken = tokens.refresh_token;
+    this.currentSessionToken = tokens.access_token;
+    this.logger.log('Login request completed successfully.');
+    return tokens;
+  }
+  async getLiveVacancies() {
+    const userAgent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
+    const resp = await firstValueFrom(
+      this.httpService
+        .post('/svc/ats/api/v1/listing?status=live', null, {
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            // Corrected 'Coockie' typo to 'Cookie'
+            'User-Agent': userAgent,
+            'x-access-token': this.currentSessionToken,
+            Accept: 'application/json',
+          },
+        })
+        .pipe(
+          // Catch HTTP/network errors within the Observable pipe
+          catchError((error: AxiosError) => {
+            this.logger.error(`Login POST failed: ${error.message}`, error.stack);
+            // Throw an error to be caught by the outer try/catch block
+            throw new Error(`External login failed. Status: ${error.response?.status || 'Network Error'}`);
+          }),
+        ),
+    );
+    return resp.data;
   }
 }
