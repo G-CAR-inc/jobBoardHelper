@@ -82,10 +82,9 @@ export class DubizzleService implements OnModuleInit {
         this.httpService
           .post('/en/auth/login/v6/', null, {
             headers: {
-              'Content-Type': 'application/json; charset=utf-8',
-              Cookie: `reese84=${reese84Cookie}`,
               Accept: 'application/json',
-              'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+              // 'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+              Cookie: `reese84=${reese84Cookie}`,
             },
           })
           .pipe(
