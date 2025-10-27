@@ -29,21 +29,51 @@ export class DubizzleService implements OnModuleInit {
     const { token } = reese84!;
     this.reese84Cookie = token;
 
-    const { access_token, refresh_token } = await this.login();
+    const { access_token, refresh_token } = (await this.login())!;
     this.currentRefreshToken = refresh_token;
     this.currentSessionToken = access_token;
-    // The POST call is now correctly awaited
-    // const loginResponse = await this.login();
-    // // this.logger.log(loginResponse);
 
-    const refresh = await this.refreshAcessToken();
-    this.logger.log(refresh);
-    // const vacancies = await this.getLiveVacancies();
-    // this.logger.log(vacancies);
+    // const refresh = await this.refreshAcessToken();
+    // this.logger.log(refresh);
+
     const info = await this.getInfo();
+
     this.logger.log(info);
   }
 
+  async getReese84Token() {
+    const utvcCookie = this.utmvcCookie!;
+
+    this.logger.log({ cookie: utvcCookie.substring(0, 30) + '...' });
+
+    try {
+      const response: AxiosResponse = await firstValueFrom(
+        this.httpService
+          .post('/We-a-did-and-He-him-as-desir-call-their-Banquo-B?d=jobs.dubizzle.com', utvcBody, {
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+              Host: 'jobs.dubizzle.com',
+              Referer: 'https://jobs.dubizzle.com/jobs/',
+              Cookie: `___utmvc=${utvcCookie}`,
+              Accept: 'application/json',
+              'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+            },
+          })
+          .pipe(
+            catchError((error: AxiosError) => {
+              this.logger.error(`Login POST failed: ${error.message}`, error.stack);
+              throw new Error(`External login failed. Status: ${error.response?.status || 'Network Error'}`);
+            }),
+          ),
+      );
+
+      const data = response.data as reese84Token;
+      return data;
+    } catch (e) {
+      this.logger.error('Failed to complete login request.', (e as Error).message);
+      return null;
+    }
+  }
   async login() {
     const reese84Cookie = this.reese84Cookie!;
 
@@ -53,7 +83,6 @@ export class DubizzleService implements OnModuleInit {
           .post('/en/auth/login/v6/', null, {
             headers: {
               'Content-Type': 'application/json; charset=utf-8',
-              // Corrected 'Coockie' typo to 'Cookie'
               Cookie: `reese84=${reese84Cookie}`,
               Accept: 'application/json',
               'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
@@ -71,7 +100,6 @@ export class DubizzleService implements OnModuleInit {
       this.logger.log('Login request completed successfully.');
       return { refresh_token, access_token };
     } catch (e) {
-      // Handle specific error from the catchError pipe or generic issues
       this.logger.error('Failed to complete login request.', e.message);
       return null;
     }
@@ -110,65 +138,16 @@ export class DubizzleService implements OnModuleInit {
     this.logger.log('refresh token request completed successfully.');
     return tokens;
   }
-  async getLiveVacancies() {
-    const userAgent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
-    const resp = await firstValueFrom(
-      this.httpService
-        .get('/svc/ats/api/v1/listing?status=live', {
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            // Corrected 'Coockie' typo to 'Cookie'
-            'User-Agent': userAgent,
-            'x-access-token': this.currentSessionToken,
-            Accept: 'application/json',
-          },
-        })
-        .pipe(
-          // Catch HTTP/network errors within the Observable pipe
-          catchError((error: AxiosError) => {
-            this.logger.error(`Login POST failed: ${error.message}`, error.stack);
-            // Throw an error to be caught by the outer try/catch block
-            throw new Error(`External login failed. Status: ${error.response?.status || 'Network Error'}`);
-          }),
-        ),
-    );
-    return resp.data;
-  }
-  async getReese84Token() {
-    const utvcCookie = this.utmvcCookie!;
 
-    this.logger.log({ cookie: utvcCookie.substring(0, 30) + '...' });
-
-    try {
-      const response: AxiosResponse = await firstValueFrom(
-        this.httpService
-          .post('/We-a-did-and-He-him-as-desir-call-their-Banquo-B?d=jobs.dubizzle.com', utvcBody, {
-            headers: {
-              'Content-Type': 'application/json; charset=utf-8',
-              Host: 'jobs.dubizzle.com',
-              Referer: 'https://jobs.dubizzle.com/jobs/',
-              Cookie: `___utmvc=${utvcCookie}`,
-              Accept: 'application/json',
-              'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-            },
-          })
-          .pipe(
-            catchError((error: AxiosError) => {
-              this.logger.error(`Login POST failed: ${error.message}`, error.stack);
-              throw new Error(`External login failed. Status: ${error.response?.status || 'Network Error'}`);
-            }),
-          ),
-      );
-
-      const data = response.data as reese84Token;
-      return data;
-    } catch (e) {
-      this.logger.error('Failed to complete login request.', (e as Error).message);
-      return null;
-    }
-  }
   async getInfo() {
-    const reese84Cookie = process.env.reese84;
+    const reese84Cookie = this.reese84Cookie!;
+    const access_token = this.currentSessionToken;
+    this.logger.log({
+      message: `requesting user info ...`,
+      date: new Date(),
+      reese84Cookie,
+      access_token,
+    });
     const userAgent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
     const resp = await firstValueFrom(
       this.httpService
@@ -177,16 +156,13 @@ export class DubizzleService implements OnModuleInit {
             'Content-Type': 'application/json; charset=utf-8',
 
             'User-Agent': userAgent,
-            'x-access-token': this.currentSessionToken,
+            'x-access-token': access_token,
             Accept: 'application/json',
             Cookie: `reese84=${reese84Cookie}`,
           },
         })
         .pipe(
-          // Catch HTTP/network errors within the Observable pipe
           catchError((error: AxiosError) => {
-            // this.logger.error(`info fetching error: ${error.message}`, error);
-            // Throw an error to be caught by the outer try/catch block
             throw new Error(`External login failed. Status: ${error.response?.status || 'Network Error'}`);
           }),
         ),
