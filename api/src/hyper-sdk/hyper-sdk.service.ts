@@ -10,13 +10,10 @@ export class HyperSdkService implements OnModuleInit {
   ) {}
   onModuleInit() {
     const apiKey = this.configService.get<string>('HYPER_SDK_API_KEY');
+    // console.log({apiKey})
     this.logger.log({ apiKey });
     if (!apiKey) {
-      const errorInfo = {
-        message: 'Conig error. HYPER_SDK_API_KEY is can not be reached.',
-        date: new Date(),
-      };
-      throw new Error(JSON.stringify(errorInfo));
+      throw new Error(`Config error. HYPER_SDK_API_KEY is can not be reached. ${new Date()}`);
     }
     // this.session = new Session(apiKey!);
   }

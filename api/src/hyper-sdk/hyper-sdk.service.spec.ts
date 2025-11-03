@@ -3,17 +3,13 @@ import { HyperSdkService } from './hyper-sdk.service';
 import { ConfigService } from '@nestjs/config';
 import { Session } from 'hyper-sdk-js';
 
-// Create a mock Session class or object
-const mockSession = {
-  // Add mock methods that your service might call
-  // example: mockMethod: () => 'mocked value'
-};
+// 1. Create mocks for the dependencies
+const mockSession = {};
 
-// Create a mock ConfigService
 const mockConfigService = {
   get: jest.fn((key: string) => {
     if (key === 'HYPER_SDK_API_KEY') {
-      return 'your-test-api-key';
+      return;
     }
     return null;
   }),
@@ -26,13 +22,14 @@ describe('HyperSdkService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         HyperSdkService,
+        // 2. Provide the mocks
         {
           provide: Session,
-          useValue: mockSession, // Provide the mock session
+          useValue: mockSession,
         },
         {
           provide: ConfigService,
-          useValue: mockConfigService, // Provide the mock config
+          useValue: mockConfigService,
         },
       ],
     }).compile();
@@ -44,11 +41,12 @@ describe('HyperSdkService', () => {
     expect(service).toBeDefined();
   });
 
-  // Add other tests here to validate your onModuleInit logic
-  it('should log the api key on init', async () => {
+  it('should log the api key on module init', async () => {
+    // 3. Call the lifecycle hook explicitly to trigger the log
     await service.onModuleInit();
-    // You can spy on the logger to ensure it was called with the key
-    // (Requires more advanced mock setup for the Logger)
+
+    // Check that the log was called
+    // (This test just checks that the config was read)
     expect(mockConfigService.get).toHaveBeenCalledWith('HYPER_SDK_API_KEY');
   });
 });
