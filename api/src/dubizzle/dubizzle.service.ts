@@ -1,6 +1,6 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { AxiosError, AxiosResponse } from 'axios';
+import axios, { AxiosError, AxiosResponse } from 'axios';
 import { firstValueFrom, catchError } from 'rxjs';
 import * as utvcBody from '../../token.json';
 import { reese84Token } from './types';
@@ -15,6 +15,11 @@ export class DubizzleService implements OnModuleInit {
   constructor(private readonly httpService: HttpService) {}
 
   async onModuleInit() {
+
+    this.generateUtmvc()
+
+
+    return;
     this.logger.log('Starting initial login process...');
     if (!this.utmvcCookie) {
       const errorBody = {
@@ -40,7 +45,20 @@ export class DubizzleService implements OnModuleInit {
 
     this.logger.log(info);
   }
-
+  generateUtmvc() {
+    const url = 'https://jobs.dubizzle.com/';
+    const apikey = 'c373e796e5a1c27578b7620e1a53051407ae7cfa';
+    axios({
+      url: 'https://api.zenrows.com/v1/',
+      method: 'GET',
+      params: {
+        url: url,
+        apikey: apikey,
+      },
+    })
+      .then((response) => console.log(response.data))
+      .catch((error) => console.log(error));
+  }
   async getReese84Token() {
     const utvcCookie = this.utmvcCookie!;
 

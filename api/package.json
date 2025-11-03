@@ -27,6 +27,7 @@
     "@nestjs/mapped-types": "*",
     "@nestjs/platform-express": "^11.0.1",
     "axios": "^1.12.2",
+    "hyper-sdk-js": "^2.10.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
