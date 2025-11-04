@@ -35,11 +35,12 @@ describe('HyperSdkService', () => {
   });
 
   it('should log the api key on module init', async () => {
-    // This will now use the real ConfigService
-    await service.onModuleInit();
+    service.onModuleInit();
 
     // You can optionally add a test to be 100% sure
     const config = module.get<ConfigService>(ConfigService);
     expect(config.get('HYPER_SDK_API_KEY')).toBeTruthy();
   });
+
+  it('???', async () => {});
 });
