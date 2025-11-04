@@ -1,38 +1,31 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HyperSdkService } from './hyper-sdk.service';
-import { ConfigService } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config'; // <-- 1. Import ConfigModule
 import { Session } from 'hyper-sdk-js';
+import { Logger } from '@nestjs/common';
 
-// 1. Create mocks for the dependencies
+// Mock the Session, but let ConfigModule provide the real ConfigService
 const mockSession = {};
-
-const mockConfigService = {
-  get: jest.fn((key: string) => {
-    if (key === 'HYPER_SDK_API_KEY') {
-      return;
-    }
-    return null;
-  }),
-};
 
 describe('HyperSdkService', () => {
   let service: HyperSdkService;
-
+  let module: TestingModule;
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
+      // 2. Import ConfigModule.forRoot() here
+      imports: [ConfigModule.forRoot()],
       providers: [
         HyperSdkService,
-        // 2. Provide the mocks
         {
           provide: Session,
           useValue: mockSession,
         },
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
+        // 3. Remove the mock ConfigService provider
+        //    Nest will now use the real one from ConfigModule
       ],
-    }).compile();
+    })
+      .setLogger(new Logger())
+      .compile();
 
     service = module.get<HyperSdkService>(HyperSdkService);
   });
@@ -42,11 +35,11 @@ describe('HyperSdkService', () => {
   });
 
   it('should log the api key on module init', async () => {
-    // 3. Call the lifecycle hook explicitly to trigger the log
+    // This will now use the real ConfigService
     await service.onModuleInit();
 
-    // Check that the log was called
-    // (This test just checks that the config was read)
-    expect(mockConfigService.get).toHaveBeenCalledWith('HYPER_SDK_API_KEY');
+    // You can optionally add a test to be 100% sure
+    const config = module.get<ConfigService>(ConfigService);
+    expect(config.get('HYPER_SDK_API_KEY')).toBeTruthy();
   });
 });
