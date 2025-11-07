@@ -17,7 +17,9 @@ describe('DubizzleService', () => {
         }),
       ],
       providers: [DubizzleService],
-    }).setLogger(new Logger()).compile();
+    })
+      .setLogger(new Logger())
+      .compile();
 
     service = module.get<DubizzleService>(DubizzleService);
   });
@@ -27,6 +29,6 @@ describe('DubizzleService', () => {
   });
   it('should return index.html', async () => {
     const resp = await service.getIndexHtml();
-
   });
 });
+//
