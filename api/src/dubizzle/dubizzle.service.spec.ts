@@ -28,6 +28,8 @@ describe('DubizzleService', () => {
   });
   it('should return index.html', async () => {
     const resp = await service.getIndexHtml();
+
+    // const _Incapsula_Resource=service.extractIncapsulaResource(resp);
   });
 });
 //
