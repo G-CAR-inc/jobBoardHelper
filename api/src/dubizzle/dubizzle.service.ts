@@ -4,6 +4,7 @@ import axios, { AxiosError, AxiosResponse } from 'axios';
 import { firstValueFrom, catchError } from 'rxjs';
 import * as utvcBody from '../../token.json';
 import { reese84Token } from './types';
+import { HyperSdkService } from 'src/hyper-sdk/hyper-sdk.service';
 @Injectable()
 export class DubizzleService implements OnModuleInit {
   private readonly logger = new Logger(DubizzleService.name);
@@ -12,7 +13,10 @@ export class DubizzleService implements OnModuleInit {
   private reese84Cookie: string | null = null;
   private utmvcCookie: string | null = process.env.___utmvc || null;
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly hyperSdk: HyperSdkService,
+  ) {}
 
   async onModuleInit() {}
 
@@ -34,7 +38,7 @@ export class DubizzleService implements OnModuleInit {
    * @param htmlContent The string content of the index.html page.
    * @returns The extracted resource path (e.g., '/_Incapsula_Resource?_') or null.
    */
-  public extractIncapsulaResource(htmlContent: string): string | null {
+  private extractIncapsulaResource(htmlContent: string): string | null {
     // The regex: finds src="(/_Incapsula_Resource\?[^"]*)"
     // The parentheses ( ) create a capturing group around the path you want.
     const regex = /src="(\/_Incapsula_Resource\?[^"]*)"/i;
@@ -71,5 +75,5 @@ export class DubizzleService implements OnModuleInit {
       throw new Error(`Failed to fetch Incapsula JS. Status: ${(error as AxiosError).response?.status || 'Network Error'}`);
     }
   }
-
+  async;
 }

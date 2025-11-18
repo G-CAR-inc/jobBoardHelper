@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { DubizzleService } from './dubizzle.service';
 import { DubizzleController } from './dubizzle.controller';
 import { HttpModule } from '@nestjs/axios';
+import { HyperSdkModule } from 'src/hyper-sdk/hyper-sdk.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { HttpModule } from '@nestjs/axios';
       maxRedirects: 5,
       // You could also add default headers like Authorization here if needed
     }),
+    HyperSdkModule,
   ],
   controllers: [DubizzleController],
   providers: [DubizzleService],
