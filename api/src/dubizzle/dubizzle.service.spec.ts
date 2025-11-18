@@ -13,7 +13,6 @@ describe('DubizzleService', () => {
           baseURL: 'https://jobs.dubizzle.com',
           timeout: 5000, // 5 seconds timeout
           maxRedirects: 5,
-          // You could also add default headers like Authorization here if needed
         }),
       ],
       providers: [DubizzleService],
