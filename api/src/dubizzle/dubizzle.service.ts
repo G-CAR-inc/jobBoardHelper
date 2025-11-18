@@ -72,37 +72,4 @@ export class DubizzleService implements OnModuleInit {
     }
   }
 
-  async getReese84Token() {
-    const utvcCookie = this.utmvcCookie!;
-
-    this.logger.log({ cookie: utvcCookie.substring(0, 30) + '...' });
-
-    try {
-      const response: AxiosResponse = await firstValueFrom(
-        this.httpService
-          .post('/We-a-did-and-He-him-as-desir-call-their-Banquo-B?d=jobs.dubizzle.com', utvcBody, {
-            headers: {
-              'Content-Type': 'application/json; charset=utf-8',
-              Host: 'jobs.dubizzle.com',
-              Referer: 'https://jobs.dubizzle.com/jobs/',
-              Cookie: `___utmvc=${utvcCookie}`,
-              Accept: 'application/json',
-              'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-            },
-          })
-          .pipe(
-            catchError((error: AxiosError) => {
-              this.logger.error(`Login POST failed: ${error.message}`, error.stack);
-              throw new Error(`External login failed. Status: ${error.response?.status || 'Network Error'}`);
-            }),
-          ),
-      );
-
-      const data = response.data as reese84Token;
-      return data;
-    } catch (e) {
-      this.logger.error('Failed to complete login request.', (e as Error).message);
-      return null;
-    }
-  }
 }
