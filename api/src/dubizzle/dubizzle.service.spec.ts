@@ -26,10 +26,8 @@ describe('DubizzleService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
-  it('should return index.html', async () => {
-    const resp = await service.getIndexHtml();
-
-    // const _Incapsula_Resource=service.extractIncapsulaResource(resp);
+  it('should return Incapsula resource', async () => {
+    const incapsulaJs = await service.scrap();
   });
 });
 //

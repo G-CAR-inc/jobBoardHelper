@@ -4,7 +4,7 @@ import axios, { AxiosError, AxiosResponse } from 'axios';
 import { firstValueFrom, catchError } from 'rxjs';
 import * as utvcBody from '../../token.json';
 import { reese84Token } from './types';
-import { HyperSdkService } from 'src/hyper-sdk/hyper-sdk.service';
+import { HyperSdkService } from '../hyper-sdk/hyper-sdk.service';
 @Injectable()
 export class DubizzleService implements OnModuleInit {
   private readonly logger = new Logger(DubizzleService.name);
@@ -15,12 +15,12 @@ export class DubizzleService implements OnModuleInit {
 
   constructor(
     private readonly httpService: HttpService,
-    private readonly hyperSdk: HyperSdkService,
+    // private readonly hyperSdk: HyperSdkService,
   ) {}
 
   async onModuleInit() {}
 
-  async getIndexHtml() {
+  async getIndexHtml(): Promise<string> {
     const url = 'https://jobs.dubizzle.com/';
     const headers = {
       'Content-Type': 'application/json; charset=utf-8',
@@ -29,9 +29,9 @@ export class DubizzleService implements OnModuleInit {
       Accept: 'application/json',
       'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
     };
-    const resp = await axios({ method: 'GET', url, headers });
-    this.logger.log(resp.data);
-    return resp;
+    const resp = await axios<string>({ method: 'GET', url, headers });
+    // this.logger.log(resp.data);
+    return resp.data;
   }
   /**
    * Extracts the Incapsula resource path from the HTML.
@@ -75,5 +75,11 @@ export class DubizzleService implements OnModuleInit {
       throw new Error(`Failed to fetch Incapsula JS. Status: ${(error as AxiosError).response?.status || 'Network Error'}`);
     }
   }
-  async;
+  async scrap() {
+    const indexHtml = await this.getIndexHtml();
+    const incapsulaResoursePath = this.extractIncapsulaResource(indexHtml);
+    const _Incapsula_Resource = await this.fetchIncapsulaJs(incapsulaResoursePath!);
+    this.logger.log({ _Incapsula_Resource, incapsulaResoursePath });
+    return _Incapsula_Resource;
+  }
 }
