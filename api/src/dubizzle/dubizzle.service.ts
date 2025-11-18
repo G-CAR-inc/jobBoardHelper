@@ -54,24 +54,52 @@ export class DubizzleService implements OnModuleInit {
       'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
     };
     const resp = await axios({ method: 'GET', url, headers });
-    this.logger.log(resp.data)
+    this.logger.log(resp.data);
     return resp;
   }
+  /**
+   * Extracts the Incapsula resource path from the HTML.
+   * @param htmlContent The string content of the index.html page.
+   * @returns The extracted resource path (e.g., '/_Incapsula_Resource?_') or null.
+   */
+  private extractIncapsulaResource(htmlContent: string): string | null {
+    // The regex: finds src="(/_Incapsula_Resource\?[^"]*)"
+    // The parentheses ( ) create a capturing group around the path you want.
+    const regex = /src="(\/_Incapsula_Resource\?[^"]*)"/i;
 
-  generateUtmvc() {
-    const url = 'https://jobs.dubizzle.com/';
-    const apikey = 'c373e796e5a1c27578b7620e1a53051407ae7cfa';
-    axios({
-      url: 'https://api.zenrows.com/v1/',
-      method: 'GET',
-      params: {
-        url: url,
-        apikey: apikey,
-      },
-    })
-      .then((response) => console.log(response.data))
-      .catch((error) => console.log(error));
+    // The .exec() method executes a search for a match in a specified string.
+    const match = regex.exec(htmlContent);
+
+    // match[1] holds the content of the first capturing group (the resource path).
+    // match[0] would be the full match, including src="...".
+    return match ? match[1] : null;
   }
+
+  async fetchIncapsulaJs(resourcePath: string): Promise<string> {
+    const baseUrl = 'https://jobs.dubizzle.com';
+    const url = `${baseUrl}${resourcePath}`;
+
+    this.logger.log(`Fetching Incapsula JS from: ${url}`);
+
+    // We use axios directly here as we only need the raw content, not the reactive pipe features.
+    try {
+      const resp = await axios.get(url, {
+        headers: {
+          // You may need to adjust these headers to mimic a real browser request
+          Accept: 'application/javascript, */*;q=0.8',
+          Host: 'jobs.dubizzle.com',
+          Referer: 'https://jobs.dubizzle.com/', // Must refer to the main page
+          'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+        },
+      });
+
+      return resp.data as string;
+    } catch (error) {
+      this.logger.error(`Failed to fetch Incapsula JS from ${url}`, (error as AxiosError).stack);
+      throw new Error(`Failed to fetch Incapsula JS. Status: ${(error as AxiosError).response?.status || 'Network Error'}`);
+    }
+  }
+
   async getReese84Token() {
     const utvcCookie = this.utmvcCookie!;
 
