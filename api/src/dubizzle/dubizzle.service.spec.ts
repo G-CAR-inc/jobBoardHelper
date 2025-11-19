@@ -2,6 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DubizzleService } from './dubizzle.service';
 import { Logger } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
+// 1. Import the Service class (as a token), not the Module
+import { HyperSdkService } from '../hyper-sdk/hyper-sdk.service';
+import { ConfigModule } from '@nestjs/config';
 import { HyperSdkModule } from '../hyper-sdk/hyper-sdk.module';
 
 describe('DubizzleService', () => {
@@ -10,9 +13,13 @@ describe('DubizzleService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
+        ConfigModule.forRoot({
+          isGlobal: true,
+          // envFilePath: '.env.test', 
+        }),
         HttpModule.register({
           baseURL: 'https://jobs.dubizzle.com',
-          timeout: 5000, // 5 seconds timeout
+          timeout: 5000,
           maxRedirects: 5,
         }),
         HyperSdkModule,
@@ -23,6 +30,10 @@ describe('DubizzleService', () => {
       .compile();
 
     service = module.get<DubizzleService>(DubizzleService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
   });
 
   it('should be defined', () => {

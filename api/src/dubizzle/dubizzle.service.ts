@@ -77,10 +77,15 @@ export class DubizzleService implements OnModuleInit {
   }
   async scrap() {
     console.log('successfully launched');
+    this.testSdk();
     // const indexHtml = await this.getIndexHtml();
     // const incapsulaResoursePath = this.extractIncapsulaResource(indexHtml);
     // const _Incapsula_Resource = await this.fetchIncapsulaJs(incapsulaResoursePath!);
     // this.logger.log({ _Incapsula_Resource, incapsulaResoursePath });
     // return _Incapsula_Resource;
+  }
+  async testSdk() {
+    this.logger.log(this.hyperSdk.onModuleInit.toString());
+    this.logger.log(this.hyperSdk.utmvc.toString());
   }
 }
