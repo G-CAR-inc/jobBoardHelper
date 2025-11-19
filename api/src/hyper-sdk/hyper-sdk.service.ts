@@ -4,7 +4,7 @@ import axios from 'axios';
 
 import { Cookie, Session } from 'hyper-sdk-js';
 import { UtmvcInput, generateUtmvcCookie, parseUtmvcScriptPath, generateUtmvcScriptPath, getSessionIds, isSessionCookie } from 'hyper-sdk-js';
-import { transformCookiesToCookieString } from 'src/utils/shared/srared.utils';
+import { transformCookiesToCookieString } from '../utils/shared/srared.utils';
 
 @Injectable()
 export class HyperSdkService implements OnModuleInit {
