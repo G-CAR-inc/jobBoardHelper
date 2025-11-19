@@ -6,6 +6,7 @@ import { firstValueFrom, catchError } from 'rxjs';
 import * as utvcBody from '../../token.json';
 import { reese84Token } from './types';
 import { HyperSdkService } from '../hyper-sdk/hyper-sdk.service';
+import { Cookie } from 'hyper-sdk-js';
 @Injectable()
 export class DubizzleService implements OnModuleInit {
   private readonly logger = new Logger(DubizzleService.name);
@@ -41,7 +42,7 @@ export class DubizzleService implements OnModuleInit {
     this.urlToParse = urlToParse!;
     this.userAgent = userAgent!;
   }
-  async getGoogleIndexHtml(): Promise<string> {
+  async getGoogleIndexHtml(): Promise<{ cookies: Cookie[]; html: string }> {
     const url = 'https://www.google.com/';
     const headers = {
       'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
@@ -49,20 +50,25 @@ export class DubizzleService implements OnModuleInit {
 
     try {
       const resp = await axios.get<string>(url, { headers });
-
-      // Extract cookies if needed
       const cookies = resp.headers['set-cookie'];
-      if (cookies) {
-        this.logger.log('Cookies extracted from Google:', cookies);
-      }
-
-      return resp.data;
+      const parsedCookies: Cookie[] = this.parseCookies(cookies!);
+      return { cookies: parsedCookies, html: resp.data as string };
     } catch (error: any) {
       this.logger.error(`Failed to fetch Google index page`, error.stack);
       throw new Error(`Failed to fetch Google index page. Status: ${error.response?.status || 'Network Error'}`);
     }
   }
-  async getIndexHtml(): Promise<string> {
+
+  private parseCookies(cookieStrings: string[]): Cookie[] {
+    return cookieStrings.map((cookieStr) => {
+      const [nameValue] = cookieStr.split(';');
+      const [name, ...valueParts] = nameValue.split('=');
+      const value = valueParts.join('=');
+
+      return { name, value };
+    });
+  }
+  async getIndexHtml(): Promise<{ cookies: Cookie[]; html: string }> {
     const url = 'https://jobs.dubizzle.com/';
     const headers = {
       'Content-Type': 'application/json; charset=utf-8',
@@ -72,20 +78,16 @@ export class DubizzleService implements OnModuleInit {
       'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
     };
 
-    const resp = await axios<string>({ method: 'GET', url, headers });
+    try {
+      const resp = await axios.get<string>(url, { headers });
+      const cookies = resp.headers['set-cookie'];
+      const parsedCookies: Cookie[] = this.parseCookies(cookies!);
 
-    // 2. Extract the 'set-cookie' header
-    // This is an array of strings, e.g., ["session_id=xyz; path=/", "user=123; ..."]
-    const cookies = resp.headers['set-cookie'];
-
-    if (cookies) {
-      this.logger.log('Cookies extracted:', cookies);
-
-      // Example: Store them or parse specific cookies here
-      // this.reese84Cookie = ...
+      return { cookies: parsedCookies, html: resp.data as string };
+    } catch (error: any) {
+      this.logger.error(`Failed to fetch Google index page`, error.stack);
+      throw new Error(`Failed to fetch Google index page. Status: ${error.response?.status || 'Network Error'}`);
     }
-
-    return resp.data;
   }
   /**
    * Extracts the Incapsula resource path from the HTML.
@@ -131,7 +133,9 @@ export class DubizzleService implements OnModuleInit {
   }
   async scrap() {
     console.log('successfully launched');
-    this.hyperSdk.utmvc('test');
+    const { cookies, html } = await this.getGoogleIndexHtml();
+    // this.logger.log({ html, cookies });
+    this.hyperSdk.utmvc(html, cookies);
     // const indexHtml = await this.getIndexHtml();
     // const incapsulaResoursePath = this.extractIncapsulaResource(indexHtml);
     // const _Incapsula_Resource = await this.fetchIncapsulaJs(incapsulaResoursePath!);

@@ -34,9 +34,8 @@ export class HyperSdkService implements OnModuleInit {
   async utmvc(html: string, cookies: Cookie[]) {
     // Parse script path from content
 
-    this.logger.log({ html, cookies });
+    this.logger.log({ html: html.slice(0, 100), cookies });
 
-    return;
     const scriptPath = parseUtmvcScriptPath(html);
 
     // Generate unique submit path
