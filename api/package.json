@@ -19,7 +19,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:hyper-sdk": "npm run test -- src/hyper-sdk/hyper-sdk.service.spec.ts",
-    "test:dubizzle": "npm run test -- src/dubizzle/dubizzle.service.spec.ts"
+    "test:dubizzle": "npm run test -- src/dubizzle/dubizzle.service.spec.ts",
+    "test:puppeteer": "npm run test -- src/puppeteer/puppeteer.service.spec.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
@@ -30,6 +31,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "axios": "^1.12.2",
     "hyper-sdk-js": "^2.10.0",
+    "puppeteer": "^24.30.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "reflect-metadata": "^0.2.2",
