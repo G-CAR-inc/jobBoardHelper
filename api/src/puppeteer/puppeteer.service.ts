@@ -28,7 +28,7 @@ export class PuppeteerService implements OnModuleInit {
     // const url = this.configService.get<string>('URL_TO_PARSE') || 'https://jobs.dubizzle.com/';
 
     const url =
-      'https://dubai.dubizzle.com/en/user/auth/email/ec22af0c728f4049b87c83b3d6d99355/?utm_campaign=magic-link&utm_medium=email&utm_source=transactional';
+      'https://dubai.dubizzle.com/en/user/auth/email/679b943df3e84f85812a99c9de9989e2/?utm_campaign=magic-link&utm_medium=email&utm_source=transactional';
     const userAgent = this.configService.get<string>('USER_AGENT');
 
     // Default to standard Linux Chrome path if env var not set
@@ -56,47 +56,48 @@ export class PuppeteerService implements OnModuleInit {
 
       // Wait for network to be idle to ensure all storage items are set
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-      setTimeout(() => {}, 5000);
-      // --- 1. Extract Cookies ---
-      const cookies = await page.cookies();
-      this.logger.debug(`Captured ${cookies.length} cookies`);
+      setTimeout(async () => {
+        // --- 1. Extract Cookies ---
+        const cookies = await page.cookies();
+        this.logger.debug(`Captured ${cookies.length} cookies`);
 
-      // --- 2. Extract Local Storage & Session Storage ---
-      // We use page.evaluate to run code inside the browser context
-      const storageData = await page.evaluate(() => {
-        const jsonLocalStorage: Record<string, string> = {};
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key) jsonLocalStorage[key] = localStorage.getItem(key) || '';
-        }
+        // --- 2. Extract Local Storage & Session Storage ---
+        // We use page.evaluate to run code inside the browser context
+        const storageData = await page.evaluate(() => {
+          const jsonLocalStorage: Record<string, string> = {};
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key) jsonLocalStorage[key] = localStorage.getItem(key) || '';
+          }
 
-        const jsonSessionStorage: Record<string, string> = {};
-        for (let i = 0; i < sessionStorage.length; i++) {
-          const key = sessionStorage.key(i);
-          if (key) jsonSessionStorage[key] = sessionStorage.getItem(key) || '';
-        }
+          const jsonSessionStorage: Record<string, string> = {};
+          for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i);
+            if (key) jsonSessionStorage[key] = sessionStorage.getItem(key) || '';
+          }
+
+          return {
+            localStorage: jsonLocalStorage,
+            sessionStorage: jsonSessionStorage,
+          };
+        });
+
+        // --- 3. Save to Files ---
+        await this.saveDataToFiles({
+          cookies,
+          localStorage: storageData.localStorage,
+          sessionStorage: storageData.sessionStorage,
+        });
+
+        this.logger.log('✅ Navigation and Extraction Successful');
 
         return {
-          localStorage: jsonLocalStorage,
-          sessionStorage: jsonSessionStorage,
+          cookies,
+          localStorage: storageData.localStorage,
+          sessionStorage: storageData.sessionStorage,
+          html: await page.content(),
         };
-      });
-
-      // --- 3. Save to Files ---
-      await this.saveDataToFiles({
-        cookies,
-        localStorage: storageData.localStorage,
-        sessionStorage: storageData.sessionStorage,
-      });
-
-      this.logger.log('✅ Navigation and Extraction Successful');
-
-      return {
-        cookies,
-        localStorage: storageData.localStorage,
-        sessionStorage: storageData.sessionStorage,
-        html: await page.content(),
-      };
+      }, 10000);
     } catch (error) {
       this.logger.error('❌ Error during Puppeteer flow', error);
       throw error;
