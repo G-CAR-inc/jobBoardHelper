@@ -19,8 +19,11 @@ export class DubizzleService implements OnModuleInit {
   private urlToParse: string;
   private userAgent: string;
 
-  private jobsReeseResourcePath: string;
-  private jobsReeseResourcePathWithQueryParams: string;
+  private reeseResourcePath: string;
+
+  //domains
+  private jobsDomain: string;
+  private uaeDomain: string;
 
   constructor(
     private readonly httpService: HttpService,
@@ -33,10 +36,9 @@ export class DubizzleService implements OnModuleInit {
 
     const urlToParse = this.configService.get<string>('URL_TO_PARSE');
 
-    
-    const jobsReeseResourcePath = this.configService.get<string>('JOBS_REESE_RESOURCE_PATH');
-    
-    const jobsReeseResourcePathWithQueryParams = this.configService.get<string>('JOBS_REESE_RESOURCE_PATH_WITH_QUERY_PARAMS');
+    const reeseResourcePath = this.configService.get<string>('REESE_RESOURCE_PATH');
+    const jobsDomain = this.configService.get<string>('JOBS_DOMAIN');
+    const uaeDomain = this.configService.get<string>('UAE_DOMAIN');
 
     const errors: string[] = [];
     if (!urlToParse) {
@@ -44,6 +46,15 @@ export class DubizzleService implements OnModuleInit {
     }
     if (!userAgent) {
       errors.push(`Config error. USER_AGENT is can not be reached. ${new Date()}`);
+    }
+    if (!jobsDomain) {
+      errors.push(`Config error. JOBS_DOMAIN is can not be reached. ${new Date()}`);
+    }
+    if (!uaeDomain) {
+      errors.push(`Config error. UAE_DOMAIN is can not be reached. ${new Date()}`);
+    }
+    if (!reeseResourcePath) {
+      errors.push(`Config error. REESE_RESOURCE_PATH is can not be reached. ${new Date()}`);
     }
     if (errors.length > 0) {
       const errorsStringified = errors.join('\n\n');
@@ -53,6 +64,9 @@ export class DubizzleService implements OnModuleInit {
 
     this.urlToParse = urlToParse!;
     this.userAgent = userAgent!;
+    this.reeseResourcePath = reeseResourcePath!;
+    this.jobsDomain = jobsDomain!;
+    this.uaeDomain = uaeDomain!;
   }
   async getGoogleIndexHtml(): Promise<{ cookies: Cookie[]; html: string }> {
     const url = 'https://www.google.com/';
