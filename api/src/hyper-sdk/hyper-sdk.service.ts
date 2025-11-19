@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { log } from 'console';
 import { Cookie, Session } from 'hyper-sdk-js';
 import { UtmvcInput, generateUtmvcCookie, parseUtmvcScriptPath, generateUtmvcScriptPath, getSessionIds, isSessionCookie } from 'hyper-sdk-js';
 
@@ -22,12 +23,14 @@ export class HyperSdkService implements OnModuleInit {
       errors.push(`Config error. USER_AGENT is can not be reached. ${new Date()}`);
     }
     if (errors.length > 0) {
-      throw new Error(errors.join('\n'));
+      const errorsStringified = errors.join('\n\n');
+      this.logger.error(errorsStringified);
+      throw new Error(errorsStringified);
     }
     this.session = new Session(apiKey!);
     this.userAgent = userAgent!;
 
-    this.logger.log(this.session);
+    this.logger.log('\n\n\n\n TEEEST',this.session, this.userAgent,'\n\n\n\n');
 
     return true;
   }
@@ -43,6 +46,7 @@ export class HyperSdkService implements OnModuleInit {
 
     // Extract session IDs from cookies
     const sessionIds = getSessionIds(cookies);
+    return;
 
     const result = await generateUtmvcCookie(
       this.session,

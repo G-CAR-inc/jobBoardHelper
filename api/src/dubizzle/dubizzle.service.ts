@@ -36,7 +36,9 @@ export class DubizzleService implements OnModuleInit {
       errors.push(`Config error. USER_AGENT is can not be reached. ${new Date()}`);
     }
     if (errors.length > 0) {
-      throw new Error(errors.join('\n'));
+      const errorsStringified = errors.join('\n\n');
+      this.logger.error(errorsStringified);
+      throw new Error(errorsStringified);
     }
 
     this.urlToParse = urlToParse!;
