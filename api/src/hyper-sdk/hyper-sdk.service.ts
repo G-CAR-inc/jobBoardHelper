@@ -14,8 +14,7 @@ export class HyperSdkService implements OnModuleInit {
     const apiKey = this.configService.get<string>('HYPER_SDK_API_KEY');
     const userAgent = this.configService.get<string>('USER_AGENT');
     const errors: string[] = [];
-    // console.log({apiKey})
-    this.logger.log({ apiKey });
+
     if (!apiKey) {
       errors.push(`Config error. HYPER_SDK_API_KEY is can not be reached. ${new Date()}`);
     }
@@ -30,14 +29,10 @@ export class HyperSdkService implements OnModuleInit {
     this.session = new Session(apiKey!);
     this.userAgent = userAgent!;
 
-    this.logger.log('\n\n\n\n TEEEST',this.session, this.userAgent,'\n\n\n\n');
-
     return true;
   }
   async utmvc(html: string, cookies: Cookie[]) {
     // Parse script path from content
-
-    this.logger.log({ html: html.slice(0, 100), cookies });
 
     const scriptPath = parseUtmvcScriptPath(html);
 
@@ -46,13 +41,14 @@ export class HyperSdkService implements OnModuleInit {
 
     // Extract session IDs from cookies
     const sessionIds = getSessionIds(cookies);
-    return;
-
     const result = await generateUtmvcCookie(
       this.session,
-      new UtmvcInput(),
+      new UtmvcInput(this.userAgent, scriptPath, sessionIds),
       // utmvc input fields
     );
+    this.logger.log({ html: html.slice(0, 100), cookies,  });
+    return;
+
     const utmvcCookie = result.payload;
     const swhanedl = result.swhanedl;
   }
