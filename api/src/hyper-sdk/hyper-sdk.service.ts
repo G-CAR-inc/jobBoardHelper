@@ -33,45 +33,10 @@ export class HyperSdkService implements OnModuleInit {
 
     return true;
   }
-  // async utmvc(html: string, cookies: Cookie[]) {
-  //   // Parse script path from content
-
-  //   const scriptPath = parseUtmvcScriptPath(html);
-
-  //   // Generate unique submit path
-  //   const submitPath = generateUtmvcScriptPath();
-
-  //   // Extract session IDs from cookies
-  //   const sessionIds = getSessionIds(cookies);
-  //   const result = await generateUtmvcCookie(
-  //     this.session,
-  //     new UtmvcInput(this.userAgent, scriptPath, sessionIds),
-  //     // utmvc input fields
-  //   );
-  //   this.logger.log({ html: html.slice(0, 100), cookies });
-  //   return;
-
-  //   const utmvcCookie = result.payload;
-  //   const swhanedl = result.swhanedl;
-  // }
   getIncapsulaSessionIds(cookies: Cookie[]) {
     return getSessionIds(cookies);
   }
   parseUtmvcResourcePath(html: string) {
     return parseUtmvcScriptPath(html);
-  }
-  async getUtmvcScript(resourcePath: string, cookies: Cookie[]): Promise<string> {
-    const cookieString = transformCookiesToCookieString(cookies);
-    const url = this.configService.get<string>('URL_TO_PARSE')! + resourcePath;
-    const resp = await axios.get(url, {
-      headers: {
-        'User-Agent': this.userAgent,
-        Cookie: cookieString,
-      },
-    });
-    return resp.data as string;
-  }
-  async getReeseScript(resourcePath: string, cookies: Cookie[]) {
-    const cookieString = transformCookiesToCookieString(cookies);
   }
 }

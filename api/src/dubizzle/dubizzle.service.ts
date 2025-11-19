@@ -129,6 +129,7 @@ export class DubizzleService implements OnModuleInit {
       },
     });
     this.logger.log(`[FETCHED REESE84 SCRIPT]`, { reeseScript: reeseScript.slice(0, 100) });
+
     //3 GET /_Incapsula_Resource?SWJIYLWA=719....
     const utmvcResource = this.hyperSdk.parseUtmvcResourcePath(html)!;
     this.logger.log(`[PARSING] utmvc path: ${utmvcResource}`);
@@ -141,8 +142,19 @@ export class DubizzleService implements OnModuleInit {
     });
 
     this.logger.log(`[FETCHED UTMVC SCRIPT]`, { utmvcScript: utmvcScript.slice(0, 100) });
+
+    // 4 https://uae.dubizzle.com/en/user/auth/       ===> PARDON OUR INTERAPTION....
+    // ====> HTML ===> PARSING...===>/Spurre-Onell-vp-Ente... script
+
+    //HYPER SDK MAGIC to get reese84 and utmvc
+
+    // 5 https://uae.dubizzle.com/Spurre-Onell-vp-Enter-feed-ere-Yourthe-away-riso/4088261707997073925?s=FtKYLY56 [FROM STEP 4]
+
+    // HYPER SDK MAGIC to get new reese84
+    // 6
   }
   async testSdk() {
     this.logger.log(this.hyperSdk.onModuleInit.toString());
   }
 }
+
