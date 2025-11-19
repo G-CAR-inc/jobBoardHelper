@@ -1,32 +1,66 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Session } from 'hyper-sdk-js';
-import { UtmvcInput, generateUtmvcCookie } from 'hyper-sdk-js';
+import { Cookie, Session } from 'hyper-sdk-js';
+import { UtmvcInput, generateUtmvcCookie, parseUtmvcScriptPath, generateUtmvcScriptPath, getSessionIds, isSessionCookie } from 'hyper-sdk-js';
+
 @Injectable()
 export class HyperSdkService implements OnModuleInit {
   private readonly logger = new Logger(HyperSdkService.name);
   private session: Session;
+  private userAgent: string;
   constructor(private configService: ConfigService) {}
   onModuleInit() {
     const apiKey = this.configService.get<string>('HYPER_SDK_API_KEY');
+    const userAgent = this.configService.get<string>('USER_AGENT');
+    const errors: string[] = [];
     // console.log({apiKey})
     this.logger.log({ apiKey });
     if (!apiKey) {
-      throw new Error(`Config error. HYPER_SDK_API_KEY is can not be reached. ${new Date()}`);
+      errors.push(`Config error. HYPER_SDK_API_KEY is can not be reached. ${new Date()}`);
+    }
+    if (!userAgent) {
+      errors.push(`Config error. USER_AGENT is can not be reached. ${new Date()}`);
+    }
+    if (errors.length > 0) {
+      throw new Error(errors.join('\n'));
     }
     this.session = new Session(apiKey!);
+    this.userAgent = userAgent!;
 
     this.logger.log(this.session);
 
     return true;
   }
-  async utmvc() {
-    // const result = await generateUtmvcCookie(
-    //   this.session,
-    //   new UtmvcInput(),
-    //   // utmvc input fields
-    // );
-    // const utmvcCookie = result.payload;
-    // const swhanedl = result.swhanedl;
+  async utmvc(html: string, cookies: Cookie[]) {
+    // Parse script path from content
+
+    this.logger.log({ html, cookies });
+
+    return;
+    const scriptPath = parseUtmvcScriptPath(html);
+
+    // Generate unique submit path
+    const submitPath = generateUtmvcScriptPath();
+
+    // Extract session IDs from cookies
+    const sessionIds = getSessionIds(cookies);
+
+    const result = await generateUtmvcCookie(
+      this.session,
+      new UtmvcInput(),
+      // utmvc input fields
+    );
+    const utmvcCookie = result.payload;
+    const swhanedl = result.swhanedl;
+  }
+  async scriptParsing() {
+    // Parse script path from content
+    const scriptPath = parseUtmvcScriptPath(scriptContent);
+
+    // Generate unique submit path
+    const submitPath = generateUtmvcScriptPath();
+
+    // Extract session IDs from cookies
+    const sessionIds = getSessionIds(cookies);
   }
 }

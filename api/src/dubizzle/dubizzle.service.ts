@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import axios, { AxiosError, AxiosResponse } from 'axios';
@@ -13,13 +14,54 @@ export class DubizzleService implements OnModuleInit {
   private reese84Cookie: string | null = null;
   private utmvcCookie: string | null = process.env.___utmvc || null;
 
+  private urlToParse: string;
+  private userAgent: string;
   constructor(
     private readonly httpService: HttpService,
     private readonly hyperSdk: HyperSdkService,
+    private readonly configService: ConfigService,
   ) {}
 
-  async onModuleInit() {}
+  async onModuleInit() {
+    const userAgent = this.configService.get<string>('USER_AGENT');
 
+    const urlToParse = this.configService.get<string>('URL_TO_PARSE');
+
+    const errors: string[] = [];
+    if (!urlToParse) {
+      errors.push(`Config error. URL_TO_PARSE is can not be reached. ${new Date()}`);
+    }
+    if (!userAgent) {
+      errors.push(`Config error. USER_AGENT is can not be reached. ${new Date()}`);
+    }
+    if (errors.length > 0) {
+      throw new Error(errors.join('\n'));
+    }
+
+    this.urlToParse = urlToParse!;
+    this.userAgent = userAgent!;
+  }
+  async getGoogleIndexHtml(): Promise<string> {
+    const url = 'https://www.google.com/';
+    const headers = {
+      'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+    };
+
+    try {
+      const resp = await axios.get<string>(url, { headers });
+
+      // Extract cookies if needed
+      const cookies = resp.headers['set-cookie'];
+      if (cookies) {
+        this.logger.log('Cookies extracted from Google:', cookies);
+      }
+
+      return resp.data;
+    } catch (error: any) {
+      this.logger.error(`Failed to fetch Google index page`, error.stack);
+      throw new Error(`Failed to fetch Google index page. Status: ${error.response?.status || 'Network Error'}`);
+    }
+  }
   async getIndexHtml(): Promise<string> {
     const url = 'https://jobs.dubizzle.com/';
     const headers = {
@@ -29,8 +71,20 @@ export class DubizzleService implements OnModuleInit {
       Accept: 'application/json',
       'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
     };
+
     const resp = await axios<string>({ method: 'GET', url, headers });
-    // this.logger.log(resp.data);
+
+    // 2. Extract the 'set-cookie' header
+    // This is an array of strings, e.g., ["session_id=xyz; path=/", "user=123; ..."]
+    const cookies = resp.headers['set-cookie'];
+
+    if (cookies) {
+      this.logger.log('Cookies extracted:', cookies);
+
+      // Example: Store them or parse specific cookies here
+      // this.reese84Cookie = ...
+    }
+
     return resp.data;
   }
   /**
@@ -77,7 +131,7 @@ export class DubizzleService implements OnModuleInit {
   }
   async scrap() {
     console.log('successfully launched');
-    this.testSdk();
+    this.hyperSdk.utmvc('test');
     // const indexHtml = await this.getIndexHtml();
     // const incapsulaResoursePath = this.extractIncapsulaResource(indexHtml);
     // const _Incapsula_Resource = await this.fetchIncapsulaJs(incapsulaResoursePath!);
