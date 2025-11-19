@@ -28,7 +28,7 @@ export class PuppeteerService implements OnModuleInit {
     // const url = this.configService.get<string>('URL_TO_PARSE') || 'https://jobs.dubizzle.com/';
 
     const url =
-      'https://dubai.dubizzle.com/en/user/auth/email/679b943df3e84f85812a99c9de9989e2/?utm_campaign=magic-link&utm_medium=email&utm_source=transactional';
+      'https://dubai.dubizzle.com/en/user/auth/email/33c1cb7f8bed4107bc43e2d7e6d3d81f/?utm_campaign=magic-link&utm_medium=email&utm_source=transactional';
     const userAgent = this.configService.get<string>('USER_AGENT');
 
     // Default to standard Linux Chrome path if env var not set
