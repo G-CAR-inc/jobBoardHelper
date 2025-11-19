@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DubizzleService } from './dubizzle.service';
 import { Logger } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
+import { HyperSdkModule } from '../hyper-sdk/hyper-sdk.module';
 
 describe('DubizzleService', () => {
   let service: DubizzleService;
@@ -14,6 +15,7 @@ describe('DubizzleService', () => {
           timeout: 5000, // 5 seconds timeout
           maxRedirects: 5,
         }),
+        HyperSdkModule,
       ],
       providers: [DubizzleService],
     })

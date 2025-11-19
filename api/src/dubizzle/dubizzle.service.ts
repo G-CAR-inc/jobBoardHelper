@@ -15,7 +15,7 @@ export class DubizzleService implements OnModuleInit {
 
   constructor(
     private readonly httpService: HttpService,
-    // private readonly hyperSdk: HyperSdkService,
+    private readonly hyperSdk: HyperSdkService,
   ) {}
 
   async onModuleInit() {}
@@ -76,10 +76,11 @@ export class DubizzleService implements OnModuleInit {
     }
   }
   async scrap() {
-    const indexHtml = await this.getIndexHtml();
-    const incapsulaResoursePath = this.extractIncapsulaResource(indexHtml);
-    const _Incapsula_Resource = await this.fetchIncapsulaJs(incapsulaResoursePath!);
-    this.logger.log({ _Incapsula_Resource, incapsulaResoursePath });
-    return _Incapsula_Resource;
+    console.log('successfully launched');
+    // const indexHtml = await this.getIndexHtml();
+    // const incapsulaResoursePath = this.extractIncapsulaResource(indexHtml);
+    // const _Incapsula_Resource = await this.fetchIncapsulaJs(incapsulaResoursePath!);
+    // this.logger.log({ _Incapsula_Resource, incapsulaResoursePath });
+    // return _Incapsula_Resource;
   }
 }
