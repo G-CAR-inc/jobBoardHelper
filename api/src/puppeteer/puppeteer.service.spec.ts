@@ -1,13 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PuppeteerService } from './puppeteer.service';
 import { ConfigService } from '@nestjs/config';
-import { Logger } from '@nestjs/common';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
 // We are NOT mocking puppeteer or stealth plugin.
 // This test will launch the REAL browser.
 
 describe('PuppeteerService (Integration)', () => {
   let service: PuppeteerService;
+
+  // Explicitly register the stealth plugin for the test environment
+  puppeteer.use(StealthPlugin());
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -18,7 +22,7 @@ describe('PuppeteerService (Integration)', () => {
           useValue: {
             // Providing real-world like config for the integration test
             get: jest.fn((key: string) => {
-              if (key === 'URL_TO_PARSE') return 'https://jobs.dubizzle.com'; // Use a stable, reliable site for testing
+              if (key === 'URL_TO_PARSE') return 'https://ua.google.com'; // Use a stable, reliable site for testing
               if (key === 'USER_AGENT')
                 return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
               return null;
@@ -26,9 +30,7 @@ describe('PuppeteerService (Integration)', () => {
           },
         },
       ],
-    })
-      .setLogger(new Logger('PUPPETER TEST LOGGER'))
-      .compile();
+    }).compile();
 
     service = module.get<PuppeteerService>(PuppeteerService);
   });
@@ -37,11 +39,11 @@ describe('PuppeteerService (Integration)', () => {
     expect(service).toBeDefined();
   });
 
-  it('should successfully launch Chrome, navigate to a page, and retrieve data', async () => {
-    // Initialize the service (registers stealth plugin)
+  it('should successfully launch Chrome with Stealth Plugin, navigate to a page, and retrieve data', async () => {
+    // Initialize the service
     service.onModuleInit();
 
-    console.log('🚀 Starting Puppeteer Integration Test...');
+    console.log('🚀 Starting Puppeteer Integration Test (Stealth Mode)...');
 
     // Increase timeout because launching real chrome takes time
     const result = await service.runBotFlow();

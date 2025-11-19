@@ -1,9 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-// import { HbConfigService } from '@nestjs/config'; // Assuming you might want typed config, otherwise standard ConfigService
 import { ConfigService } from '@nestjs/config';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { Browser, Page } from 'puppeteer';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 @Injectable()
 export class PuppeteerService implements OnModuleInit {
@@ -12,24 +13,25 @@ export class PuppeteerService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit() {
-    // 1. Enable the Stealth Plugin to hide automation traces
     puppeteer.use(StealthPlugin());
     this.logger.log('Puppeteer Stealth Plugin initialized');
   }
 
   /**
    * Executes the main scraping flow:
-   * 1. Launches Google Chrome (channel='chrome' equivalent)
-   * 2. Configures User Agent & Viewport
-   * 3. Navigates to the target Dubizzle URL
-   * 4. Extracts Cookies & LocalStorage (useful for session saving)
+   * 1. Launches Google Chrome
+   * 2. Navigates to the target URL
+   * 3. Extracts Cookies, LocalStorage, and SessionStorage
+   * 4. Saves them to separate JSON files
    */
   async runBotFlow() {
-    const url = this.configService.get<string>('URL_TO_PARSE') || 'https://jobs.dubizzle.com/';
+    // const url = this.configService.get<string>('URL_TO_PARSE') || 'https://jobs.dubizzle.com/';
+
+    const url =
+      'https://dubai.dubizzle.com/en/user/auth/email/ec22af0c728f4049b87c83b3d6d99355/?utm_campaign=magic-link&utm_medium=email&utm_source=transactional';
     const userAgent = this.configService.get<string>('USER_AGENT');
 
-    // ⚠️ CRITICAL: On Ubuntu 24, point this to your installed Chrome binary.
-    // Run `which google-chrome` in terminal to verify this path.
+    // Default to standard Linux Chrome path if env var not set
     const executablePath = process.env.CHROME_PATH || '/usr/bin/google-chrome';
 
     let browser: Browser | null = null;
@@ -38,64 +40,61 @@ export class PuppeteerService implements OnModuleInit {
       this.logger.log(`Launching Chrome from: ${executablePath}`);
 
       browser = await puppeteer.launch({
-        headless: false, // Keep false for debugging bot challenges
-        executablePath: executablePath, // Uses real Chrome instead of bundled Chromium
-        defaultViewport: null, // Allows the window to resize naturally
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage', // Helps with memory in Docker/Linux
-          '--window-size=1920,1080',
-        ],
+        headless: false, // Visible for debugging
+        executablePath: executablePath,
+        defaultViewport: null,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--window-size=1920,1080'],
       });
 
       const page = await browser.newPage();
 
-      // 2. Configure the Browser Context
       if (userAgent) {
         await page.setUserAgent(userAgent);
       }
 
-      // Optional: Add extra headers if needed for the specific bot protection
-      await page.setExtraHTTPHeaders({
-        'Accept-Language': 'en-US,en;q=0.9',
-      });
-
       this.logger.log(`Navigating to ${url}...`);
 
-      // 3. Navigate to the target
-      // waitUntil: 'networkidle2' waits until there are no more than 2 network connections for at least 500 ms.
+      // Wait for network to be idle to ensure all storage items are set
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-
-      // 4. Wait for any specific selector if needed (e.g., verifying site loaded)
-      // await page.waitForSelector('body');
-
-      // 5. Extract Data (Cookies & Local Storage)
-      // This mimics the functionality you asked about in previous prompts
+      setTimeout(() => {}, 5000);
+      // --- 1. Extract Cookies ---
       const cookies = await page.cookies();
-
-      const localStorageData = await page.evaluate(() => {
-        const data: Record<string, string> = {};
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key) data[key] = localStorage.getItem(key) || '';
-        }
-        return data;
-      });
-
-      this.logger.log('✅ Navigation Successful');
       this.logger.debug(`Captured ${cookies.length} cookies`);
 
-      // Example: Check for specific security cookies (like reese84)
-      const reese84 = cookies.find((c) => c.name === 'reese84');
-      if (reese84) {
-        this.logger.log(`Found reese84 cookie: ${reese84.value.substring(0, 15)}...`);
-      }
+      // --- 2. Extract Local Storage & Session Storage ---
+      // We use page.evaluate to run code inside the browser context
+      const storageData = await page.evaluate(() => {
+        const jsonLocalStorage: Record<string, string> = {};
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key) jsonLocalStorage[key] = localStorage.getItem(key) || '';
+        }
 
-      // Return the session data so you can use it in your HttpService (Axios) later if needed
+        const jsonSessionStorage: Record<string, string> = {};
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key) jsonSessionStorage[key] = sessionStorage.getItem(key) || '';
+        }
+
+        return {
+          localStorage: jsonLocalStorage,
+          sessionStorage: jsonSessionStorage,
+        };
+      });
+
+      // --- 3. Save to Files ---
+      await this.saveDataToFiles({
+        cookies,
+        localStorage: storageData.localStorage,
+        sessionStorage: storageData.sessionStorage,
+      });
+
+      this.logger.log('✅ Navigation and Extraction Successful');
+
       return {
         cookies,
-        localStorage: localStorageData,
+        localStorage: storageData.localStorage,
+        sessionStorage: storageData.sessionStorage,
         html: await page.content(),
       };
     } catch (error) {
@@ -103,9 +102,33 @@ export class PuppeteerService implements OnModuleInit {
       throw error;
     } finally {
       if (browser) {
-        await browser.close();
+        // await browser.close();
         this.logger.log('Browser closed');
       }
     }
+  }
+
+  private async saveDataToFiles(data: { cookies: any[]; localStorage: Record<string, string>; sessionStorage: Record<string, string> }) {
+    const dataDir = path.join(process.cwd(), 'data');
+
+    // Ensure directory exists
+    try {
+      await fs.access(dataDir);
+    } catch {
+      await fs.mkdir(dataDir);
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+    // 1. Save Cookies
+    await fs.writeFile(path.join(dataDir, `cookies-${timestamp}.json`), JSON.stringify(data.cookies, null, 2));
+
+    // 2. Save Local Storage
+    await fs.writeFile(path.join(dataDir, `local-storage-${timestamp}.json`), JSON.stringify(data.localStorage, null, 2));
+
+    // 3. Save Session Storage
+    await fs.writeFile(path.join(dataDir, `session-storage-${timestamp}.json`), JSON.stringify(data.sessionStorage, null, 2));
+
+    this.logger.log(`💾 Session data saved to ${dataDir}`);
   }
 }
