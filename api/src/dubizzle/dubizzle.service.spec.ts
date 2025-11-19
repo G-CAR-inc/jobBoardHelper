@@ -30,6 +30,7 @@ describe('DubizzleService', () => {
       .compile();
 
     service = module.get<DubizzleService>(DubizzleService);
+    await module.init();
   });
 
   it('should be defined', () => {
