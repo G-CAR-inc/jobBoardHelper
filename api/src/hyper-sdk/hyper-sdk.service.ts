@@ -4,6 +4,7 @@ import axios from 'axios';
 
 import { Cookie, Session } from 'hyper-sdk-js';
 import { UtmvcInput, generateUtmvcCookie, parseUtmvcScriptPath, generateUtmvcScriptPath, getSessionIds, isSessionCookie } from 'hyper-sdk-js';
+import { transformCookiesToCookieString } from 'src/utils/shared/srared.utils';
 
 @Injectable()
 export class HyperSdkService implements OnModuleInit {
@@ -60,8 +61,9 @@ export class HyperSdkService implements OnModuleInit {
     return parseUtmvcScriptPath(html);
   }
   async getUtmvcScript(resourcePath: string, cookies: Cookie[]): Promise<string> {
-    const cookieString = cookies.map((coockie) => `${coockie.name}=${coockie.value}`).join('; ');
-    const resp = await axios.get(this.configService.get<string>('URL_TO_PARSE')!, {
+    const cookieString = transformCookiesToCookieString(cookies);
+    const url = this.configService.get<string>('URL_TO_PARSE')! + resourcePath;
+    const resp = await axios.get(url, {
       headers: {
         'User-Agent': this.userAgent,
         Cookie: cookieString,
@@ -69,5 +71,7 @@ export class HyperSdkService implements OnModuleInit {
     });
     return resp.data as string;
   }
-  async 
+  async getReeseScript(resourcePath: string, cookies: Cookie[]) {
+    const cookieString = transformCookiesToCookieString(cookies);
+  }
 }

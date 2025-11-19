@@ -7,6 +7,7 @@ import * as utvcBody from '../../token.json';
 import { reese84Token } from './types';
 import { HyperSdkService } from '../hyper-sdk/hyper-sdk.service';
 import { Cookie } from 'hyper-sdk-js';
+import { transformCookiesToCookieString } from 'src/utils/shared/srared.utils';
 @Injectable()
 export class DubizzleService implements OnModuleInit {
   private readonly logger = new Logger(DubizzleService.name);
@@ -17,6 +18,10 @@ export class DubizzleService implements OnModuleInit {
 
   private urlToParse: string;
   private userAgent: string;
+
+  private jobsReeseResourcePath: string;
+  private jobsReeseResourcePathWithQueryParams: string;
+
   constructor(
     private readonly httpService: HttpService,
     private readonly hyperSdk: HyperSdkService,
@@ -27,6 +32,11 @@ export class DubizzleService implements OnModuleInit {
     const userAgent = this.configService.get<string>('USER_AGENT');
 
     const urlToParse = this.configService.get<string>('URL_TO_PARSE');
+
+    
+    const jobsReeseResourcePath = this.configService.get<string>('JOBS_REESE_RESOURCE_PATH');
+    
+    const jobsReeseResourcePathWithQueryParams = this.configService.get<string>('JOBS_REESE_RESOURCE_PATH_WITH_QUERY_PARAMS');
 
     const errors: string[] = [];
     if (!urlToParse) {
@@ -136,8 +146,17 @@ export class DubizzleService implements OnModuleInit {
   async scrap() {
     console.log('successfully launched');
     const { cookies, html } = await this.getIndexHtml();
-    const utmvResource = this.hyperSdk.parseUtmvcResourcePath(html)!;
-    const utmvcScript = await this.hyperSdk.getUtmvcScript(utmvResource, cookies);
+    const cookieString = transformCookiesToCookieString(cookies);
+
+    const utmvcResource = this.hyperSdk.parseUtmvcResourcePath(html)!;
+    const utmvcUrl = this.urlToParse + utmvcResource;
+    const resp = await axios.get(utmvcUrl, {
+      headers: {
+        'User-Agent': this.userAgent,
+        Cookie: cookieString,
+      },
+    });
+
     this.logger.log({ html, cookies });
     // this.hyperSdk.utmvc(html, cookies);
     // const indexHtml = await this.getIndexHtml();
