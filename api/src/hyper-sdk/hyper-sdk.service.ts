@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { log } from 'console';
+import axios from 'axios';
+
 import { Cookie, Session } from 'hyper-sdk-js';
 import { UtmvcInput, generateUtmvcCookie, parseUtmvcScriptPath, generateUtmvcScriptPath, getSessionIds, isSessionCookie } from 'hyper-sdk-js';
 
@@ -31,35 +32,42 @@ export class HyperSdkService implements OnModuleInit {
 
     return true;
   }
-  async utmvc(html: string, cookies: Cookie[]) {
-    // Parse script path from content
+  // async utmvc(html: string, cookies: Cookie[]) {
+  //   // Parse script path from content
 
-    const scriptPath = parseUtmvcScriptPath(html);
+  //   const scriptPath = parseUtmvcScriptPath(html);
 
-    // Generate unique submit path
-    const submitPath = generateUtmvcScriptPath();
+  //   // Generate unique submit path
+  //   const submitPath = generateUtmvcScriptPath();
 
-    // Extract session IDs from cookies
-    const sessionIds = getSessionIds(cookies);
-    const result = await generateUtmvcCookie(
-      this.session,
-      new UtmvcInput(this.userAgent, scriptPath, sessionIds),
-      // utmvc input fields
-    );
-    this.logger.log({ html: html.slice(0, 100), cookies,  });
-    return;
+  //   // Extract session IDs from cookies
+  //   const sessionIds = getSessionIds(cookies);
+  //   const result = await generateUtmvcCookie(
+  //     this.session,
+  //     new UtmvcInput(this.userAgent, scriptPath, sessionIds),
+  //     // utmvc input fields
+  //   );
+  //   this.logger.log({ html: html.slice(0, 100), cookies });
+  //   return;
 
-    const utmvcCookie = result.payload;
-    const swhanedl = result.swhanedl;
+  //   const utmvcCookie = result.payload;
+  //   const swhanedl = result.swhanedl;
+  // }
+  getIncapsulaSessionIds(cookies: Cookie[]) {
+    return getSessionIds(cookies);
   }
-  async scriptParsing() {
-    // Parse script path from content
-    const scriptPath = parseUtmvcScriptPath(scriptContent);
-
-    // Generate unique submit path
-    const submitPath = generateUtmvcScriptPath();
-
-    // Extract session IDs from cookies
-    const sessionIds = getSessionIds(cookies);
+  parseUtmvcResourcePath(html: string) {
+    return parseUtmvcScriptPath(html);
   }
+  async getUtmvcScript(resourcePath: string, cookies: Cookie[]): Promise<string> {
+    const cookieString = cookies.map((coockie) => `${coockie.name}=${coockie.value}`).join('; ');
+    const resp = await axios.get(this.configService.get<string>('URL_TO_PARSE')!, {
+      headers: {
+        'User-Agent': this.userAgent,
+        Cookie: cookieString,
+      },
+    });
+    return resp.data as string;
+  }
+  async 
 }

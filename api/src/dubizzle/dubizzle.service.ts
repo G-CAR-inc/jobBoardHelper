@@ -14,7 +14,6 @@ export class DubizzleService implements OnModuleInit {
   private currentRefreshToken: string | null = null;
   private reese84Cookie: string | null = null;
   private utmvcCookie: string | null = process.env.___utmvc || null;
-  
 
   private urlToParse: string;
   private userAgent: string;
@@ -74,11 +73,11 @@ export class DubizzleService implements OnModuleInit {
   async getIndexHtml(): Promise<{ cookies: Cookie[]; html: string }> {
     const url = 'https://jobs.dubizzle.com/';
     const headers = {
-      'Content-Type': 'application/json; charset=utf-8',
-      Host: 'jobs.dubizzle.com',
-      Referer: 'https://jobs.dubizzle.com/jobs/',
-      Accept: 'application/json',
-      'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+      // 'Content-Type': 'application/json; charset=utf-8',
+      // Host: 'jobs.dubizzle.com',
+      // Referer: 'https://jobs.dubizzle.com/jobs/',
+      // Accept: 'application/json',
+      // 'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
     };
 
     try {
@@ -136,9 +135,11 @@ export class DubizzleService implements OnModuleInit {
   }
   async scrap() {
     console.log('successfully launched');
-    const { cookies, html } = await this.getGoogleIndexHtml();
-    // this.logger.log({ html, cookies });
-    this.hyperSdk.utmvc(html, cookies);
+    const { cookies, html } = await this.getIndexHtml();
+    const utmvResource = this.hyperSdk.parseUtmvcResourcePath(html)!;
+    const utmvcScript = await this.hyperSdk.getUtmvcScript(utmvResource, cookies);
+    this.logger.log({ html, cookies });
+    // this.hyperSdk.utmvc(html, cookies);
     // const indexHtml = await this.getIndexHtml();
     // const incapsulaResoursePath = this.extractIncapsulaResource(indexHtml);
     // const _Incapsula_Resource = await this.fetchIncapsulaJs(incapsulaResoursePath!);
@@ -147,6 +148,5 @@ export class DubizzleService implements OnModuleInit {
   }
   async testSdk() {
     this.logger.log(this.hyperSdk.onModuleInit.toString());
-    this.logger.log(this.hyperSdk.utmvc.toString());
   }
 }
