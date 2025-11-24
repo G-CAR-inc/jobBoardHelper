@@ -2,9 +2,9 @@ import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import axios, { AxiosError, AxiosResponse } from 'axios';
-import { HyperSdkService } from '../hyper-sdk/hyper-sdk.service';
-import { Cookie } from 'hyper-sdk-js';
 import { transformCookiesToCookieString } from '../utils/shared/srared.utils';
+import { PrismaService } from '../prisma/prisma.service';
+import { Cookie } from 'src/utils/shared/shared.types';
 @Injectable()
 export class DubizzleService implements OnModuleInit {
   private readonly logger = new Logger(DubizzleService.name);
@@ -24,7 +24,7 @@ export class DubizzleService implements OnModuleInit {
 
   constructor(
     private readonly httpService: HttpService,
-    private readonly hyperSdk: HyperSdkService,
+    private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -131,17 +131,17 @@ export class DubizzleService implements OnModuleInit {
     this.logger.log(`[FETCHED REESE84 SCRIPT]`, { reeseScript: reeseScript.slice(0, 100) });
 
     //3 GET /_Incapsula_Resource?SWJIYLWA=719....
-    const utmvcResource = this.hyperSdk.parseUtmvcResourcePath(html)!;
-    this.logger.log(`[PARSING] utmvc path: ${utmvcResource}`);
-    const utmvcUrl = this.urlToParse + utmvcResource;
-    const { data: utmvcScript } = await axios.get(utmvcUrl, {
-      headers: {
-        'User-Agent': this.userAgent,
-        Cookie: cookieString,
-      },
-    });
+    // const utmvcResource = this.hyperSdk.parseUtmvcResourcePath(html)!;
+    // this.logger.log(`[PARSING] utmvc path: ${utmvcResource}`);
+    // const utmvcUrl = this.urlToParse + utmvcResource;
+    // const { data: utmvcScript } = await axios.get(utmvcUrl, {
+    //   headers: {
+    //     'User-Agent': this.userAgent,
+    //     Cookie: cookieString,
+    //   },
+    // });
 
-    this.logger.log(`[FETCHED UTMVC SCRIPT]`, { utmvcScript: utmvcScript.slice(0, 100) });
+    // this.logger.log(`[FETCHED UTMVC SCRIPT]`, { utmvcScript: utmvcScript.slice(0, 100) });
 
     // 4 https://uae.dubizzle.com/en/user/auth/       ===> PARDON OUR INTERAPTION....
     // ====> HTML ===> PARSING...===>/Spurre-Onell-vp-Ente... script
@@ -154,7 +154,6 @@ export class DubizzleService implements OnModuleInit {
     // 6
   }
   async testSdk() {
-    this.logger.log(this.hyperSdk.onModuleInit.toString());
+    // this.logger.log(this.hyperSdk.onModuleInit.toString());
   }
 }
-

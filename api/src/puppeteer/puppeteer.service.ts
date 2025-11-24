@@ -55,7 +55,9 @@ export class PuppeteerService implements OnModuleInit {
       this.logger.log(`Navigating to ${url}...`);
 
       // Wait for network to be idle to ensure all storage items are set
+
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+
       setTimeout(async () => {
         // --- 1. Extract Cookies ---
         const cookies = await page.cookies();
