@@ -2,136 +2,158 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { Browser, Page } from 'puppeteer';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import { Browser, Page, CookieParam } from 'puppeteer';
+import { PrismaService } from '../prisma/prisma.service';
+import { URL } from 'url';
 
 @Injectable()
 export class PuppeteerService implements OnModuleInit {
   private readonly logger = new Logger(PuppeteerService.name);
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   onModuleInit() {
     puppeteer.use(StealthPlugin());
     this.logger.log('Puppeteer Stealth Plugin initialized');
   }
 
-  /**
-   * Executes the main scraping flow:
-   * 1. Launches Google Chrome
-   * 2. Navigates to the target URL
-   * 3. Extracts Cookies, LocalStorage, and SessionStorage
-   * 4. Saves them to separate JSON files
-   */
-  async runBotFlow() {
-    // const url = this.configService.get<string>('URL_TO_PARSE') || 'https://jobs.dubizzle.com/';
+  async refreshTokens() {
+    const urlToParse = this.configService.getOrThrow<string>('URL_TO_PARSE');
+    const domain = new URL(urlToParse).hostname;
 
-    const url =
-      'https://dubai.dubizzle.com/en/user/auth/email/33c1cb7f8bed4107bc43e2d7e6d3d81f/?utm_campaign=magic-link&utm_medium=email&utm_source=transactional';
+    const initMagicLink = this.configService.get<string>('INIT_MAGIC_LINK');
     const userAgent = this.configService.get<string>('USER_AGENT');
-
-    // Default to standard Linux Chrome path if env var not set
     const executablePath = process.env.CHROME_PATH || '/usr/bin/google-chrome';
 
     let browser: Browser | null = null;
 
     try {
-      this.logger.log(`Launching Chrome from: ${executablePath}`);
+      // 1) Check if the db table has any records.
+      const existingSession = await this.prisma.browserSession.findFirst({
+        where: { domain },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      this.logger.log(`Launching Browser for ${domain}...`);
 
       browser = await puppeteer.launch({
-        headless: false, // Visible for debugging
-        executablePath: executablePath,
+        headless: false,
+        executablePath,
         defaultViewport: null,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--window-size=1920,1080'],
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--window-size=1920,1080',
+          ...(userAgent ? [`--user-agent=${userAgent}`] : []),
+        ],
       });
 
       const page = await browser.newPage();
 
-      if (userAgent) {
-        await page.setUserAgent(userAgent);
+      if (!existingSession) {
+        // 2.1) Init via Magic Link
+        if (!initMagicLink) {
+          throw new Error('No session found and INIT_MAGIC_LINK is missing');
+        }
+        this.logger.log('No existing session. Initializing via Magic Link...');
+        await page.goto(initMagicLink, { waitUntil: 'networkidle2', timeout: 60000 });
+      } else {
+        // 2.2) Restore existing session
+        this.logger.log('Found existing session. Restoring state...');
+
+        if (existingSession.cookies) {
+          const rawCookies = existingSession.cookies as unknown as CookieParam[];
+
+          const cookiesToRestore = rawCookies.map((c) => ({
+            ...c,
+            domain: c.domain || domain,
+          }));
+
+          await page.browserContext().setCookie(...(cookiesToRestore as any[]));
+        }
+
+        this.logger.log(`Navigating to ${urlToParse} to inject storage...`);
+        await page.goto(urlToParse, { waitUntil: 'domcontentloaded' });
+
+        await page.evaluate(
+          (ls, ss) => {
+            if (ls) {
+              Object.entries(ls).forEach(([k, v]) => localStorage.setItem(k, v as string));
+            }
+            if (ss) {
+              Object.entries(ss).forEach(([k, v]) => sessionStorage.setItem(k, v as string));
+            }
+          },
+          existingSession.localStorage || {},
+          existingSession.sessionStorage || {},
+        );
+
+        this.logger.log('Reloading page to apply storage state...');
+        await page.reload({ waitUntil: 'networkidle2' });
       }
 
-      this.logger.log(`Navigating to ${url}...`);
+      // 3) Navigate to target
+      if (page.url() !== urlToParse) {
+        this.logger.log(`Navigating to target: ${urlToParse}`);
+        await page.goto(urlToParse, { waitUntil: 'networkidle2' });
+      }
 
-      // Wait for network to be idle to ensure all storage items are set
+      // --- WAIT LOGIC ---
+      // Instead of setTimeout callback, we await a promise that resolves after 10s
+      this.logger.log('Waiting 10s for page to settle...');
+      await new Promise((resolve) => setTimeout(resolve, 10000));
 
-      await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+      // --- EXTRACT LOGIC ---
+      this.logger.log('Extracting new session state...');
 
-      setTimeout(async () => {
-        // --- 1. Extract Cookies ---
-        const cookies = await page.cookies();
-        this.logger.debug(`Captured ${cookies.length} cookies`);
+      const cookies = await page.browserContext().cookies();
 
-        // --- 2. Extract Local Storage & Session Storage ---
-        // We use page.evaluate to run code inside the browser context
-        const storageData = await page.evaluate(() => {
-          const jsonLocalStorage: Record<string, string> = {};
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key) jsonLocalStorage[key] = localStorage.getItem(key) || '';
-          }
+      const storageData = await page.evaluate(() => {
+        const ls: Record<string, string> = {};
+        const ss: Record<string, string> = {};
 
-          const jsonSessionStorage: Record<string, string> = {};
-          for (let i = 0; i < sessionStorage.length; i++) {
-            const key = sessionStorage.key(i);
-            if (key) jsonSessionStorage[key] = sessionStorage.getItem(key) || '';
-          }
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key) ls[key] = localStorage.getItem(key) || '';
+        }
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key) ss[key] = sessionStorage.getItem(key) || '';
+        }
+        return { ls, ss };
+      });
 
-          return {
-            localStorage: jsonLocalStorage,
-            sessionStorage: jsonSessionStorage,
-          };
-        });
+      this.logger.log('Saving state to database...');
+      this.logger.log({
+        message: 'successfully fetched tokens :)',
+        access_token: storageData.ls['access_token'],
+        refresh_token: storageData.ls['refresh_token'],
+        reese84: storageData.ls['reese84'],
+      });
 
-        // --- 3. Save to Files ---
-        await this.saveDataToFiles({
-          cookies,
-          localStorage: storageData.localStorage,
-          sessionStorage: storageData.sessionStorage,
-        });
+      const savedSession = await this.prisma.browserSession.create({
+        data: {
+          domain,
+          cookies: cookies as any,
+          localStorage: storageData.ls,
+          sessionStorage: storageData.ss,
+        },
+      });
 
-        this.logger.log('✅ Navigation and Extraction Successful');
+      // 4) Close Browser
+      await browser.close();
+      this.logger.log('Browser closed.');
 
-        return {
-          cookies,
-          localStorage: storageData.localStorage,
-          sessionStorage: storageData.sessionStorage,
-          html: await page.content(),
-        };
-      }, 10000);
+      // 5) Return Data (Now this line is reachable and contains the data)
+      return savedSession;
     } catch (error) {
-      this.logger.error('❌ Error during Puppeteer flow', error);
+      this.logger.error('❌ Error during refreshTokens flow', error);
+      if (browser) await browser.close();
       throw error;
-    } finally {
-      if (browser) {
-        // await browser.close();
-        this.logger.log('Browser closed');
-      }
     }
-  }
-
-  private async saveDataToFiles(data: { cookies: any[]; localStorage: Record<string, string>; sessionStorage: Record<string, string> }) {
-    const dataDir = path.join(process.cwd(), 'data');
-
-    // Ensure directory exists
-    try {
-      await fs.access(dataDir);
-    } catch {
-      await fs.mkdir(dataDir);
-    }
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-
-    // 1. Save Cookies
-    await fs.writeFile(path.join(dataDir, `cookies-${timestamp}.json`), JSON.stringify(data.cookies, null, 2));
-
-    // 2. Save Local Storage
-    await fs.writeFile(path.join(dataDir, `local-storage-${timestamp}.json`), JSON.stringify(data.localStorage, null, 2));
-
-    // 3. Save Session Storage
-    await fs.writeFile(path.join(dataDir, `session-storage-${timestamp}.json`), JSON.stringify(data.sessionStorage, null, 2));
-
-    this.logger.log(`💾 Session data saved to ${dataDir}`);
   }
 }

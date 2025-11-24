@@ -16,5 +16,4 @@ model BrowserSession {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  @@unique([domain]) // Ensure one session per domain (or remove to allow multiple)
 }
