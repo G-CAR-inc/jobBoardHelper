@@ -107,11 +107,24 @@ export class DubizzleService implements OnModuleInit {
   //   // HYPER SDK MAGIC to get new reese84
   //   // 6
   // }
+  async fetch(props: { url: string; headers: Record<string, string>; body: any; cookieString: string }) {
+    const { url, headers: inpHeaders, body: inpBody, cookieString } = props;
+  }
   async getVacancies() {}
   async scrap() {
     const domain = this.jobsDomain;
-    const session = this.browserSessionRepo.findLatestSession(domain);
-    this.logger.log(session);
+    const session = await this.browserSessionRepo.findLatestSession(domain);
+    this.logger.log(session?.cookies);
+    const cookies = session?.cookies as unknown as {
+      name: string;
+      value: string;
+      domain: string;
+    }[];
+    const cookieString = cookies
+      .map((cookie) => ([domain, '.dubizzle.com'].includes(cookie.domain) ? `${cookie.name}=${cookie.value}` : ''))
+      .filter((cookie) => !!cookie)
+      .join('; ');
+    this.logger.log({ cookieString });
     const vacancies = await this.getVacancies();
   }
 }

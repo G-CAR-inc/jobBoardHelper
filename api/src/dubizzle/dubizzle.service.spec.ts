@@ -4,6 +4,7 @@ import { Logger } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { BrowserSessionRepository } from './repositories/browser-session.repository';
+import { PrismaModule } from '../prisma/prisma.module';
 describe('DubizzleService', () => {
   let service: DubizzleService;
 
@@ -19,6 +20,7 @@ describe('DubizzleService', () => {
           timeout: 5000,
           maxRedirects: 5,
         }),
+        PrismaModule
       ],
       providers: [DubizzleService, BrowserSessionRepository],
     })
