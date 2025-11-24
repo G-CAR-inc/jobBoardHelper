@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { DubizzleService } from './dubizzle.service';
 import { DubizzleController } from './dubizzle.controller';
 import { HttpModule } from '@nestjs/axios';
+import { BrowserSessionRepository } from './repositories/browser-session.repository';
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import { HttpModule } from '@nestjs/axios';
     }),
   ],
   controllers: [DubizzleController],
-  providers: [DubizzleService],
+  providers: [DubizzleService, BrowserSessionRepository],
   exports: [DubizzleService],
 })
 export class DubizzleModule {}
