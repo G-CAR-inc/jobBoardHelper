@@ -4,7 +4,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { transformCookiesToCookieString } from '../utils/shared/srared.utils';
 import { PrismaService } from '../prisma/prisma.service';
-import { Cookie } from 'src/utils/shared/shared.types';
+import { Cookie } from '../utils/shared/shared.types';
 @Injectable()
 export class DubizzleService implements OnModuleInit {
   private readonly logger = new Logger(DubizzleService.name);
