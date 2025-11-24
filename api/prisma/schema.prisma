@@ -1,0 +1,19 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model BrowserSession {
+  id             String   @id @default(uuid())
+  domain         String   // To easily find sessions for specific sites (e.g., 'dubizzle.com')
+  cookies        Json     // Stores Cookie[]
+  localStorage   Json     // Stores Record<string, string>
+  sessionStorage Json     // Stores Record<string, string>
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+}
