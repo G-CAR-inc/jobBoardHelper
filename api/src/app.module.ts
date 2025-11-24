@@ -8,7 +8,5 @@ import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [DubizzleModule, ConfigModule.forRoot({ isGlobal: true }), PuppeteerModule, PrismaModule],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}

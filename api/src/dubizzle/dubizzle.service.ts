@@ -5,6 +5,7 @@ import axios, { AxiosError, AxiosResponse } from 'axios';
 import { transformCookiesToCookieString } from '../utils/shared/srared.utils';
 import { PrismaService } from '../prisma/prisma.service';
 import { Cookie } from '../utils/shared/shared.types';
+import { BrowserSessionRepository } from './repositories/browser-session.repository';
 @Injectable()
 export class DubizzleService implements OnModuleInit {
   private readonly logger = new Logger(DubizzleService.name);
@@ -24,7 +25,7 @@ export class DubizzleService implements OnModuleInit {
 
   constructor(
     private readonly httpService: HttpService,
-    private readonly prisma: PrismaService,
+    private readonly browserSessionRepo: BrowserSessionRepository,
     private readonly configService: ConfigService,
   ) {}
 
@@ -65,95 +66,52 @@ export class DubizzleService implements OnModuleInit {
     this.jobsDomain = jobsDomain!;
     this.uaeDomain = uaeDomain!;
   }
-  async getGoogleIndexHtml(): Promise<{ cookies: Cookie[]; html: string }> {
-    const url = 'https://www.google.com/';
-    const headers = {
-      'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-    };
 
-    try {
-      const resp = await axios.get<string>(url, { headers });
-      const cookies = resp.headers['set-cookie'];
-      const parsedCookies: Cookie[] = this.parseCookies(cookies!);
-      return { cookies: parsedCookies, html: resp.data as string };
-    } catch (error: any) {
-      this.logger.error(`Failed to fetch Google index page`, error.stack);
-      throw new Error(`Failed to fetch Google index page. Status: ${error.response?.status || 'Network Error'}`);
-    }
-  }
+  // async scrap() {
+  //   this.logger.log('[START] scrapping...');
+  //   //1 GET INDEX.HTML
+  //   const { cookies, html } = await this.getIndexHtml();
+  //   const cookieString = transformCookiesToCookieString(cookies);
+  //   this.logger.log(`[PARSING]`, { html: html.slice(0, 100), cookies });
 
-  private parseCookies(cookieStrings: string[]): Cookie[] {
-    return cookieStrings.map((cookieStr) => {
-      const [nameValue] = cookieStr.split(';');
-      const [name, ...valueParts] = nameValue.split('=');
-      const value = valueParts.join('=');
+  //   //2 GET/We-a-did-and-He-him-as-desir-call-their-Banquo-B
+  //   const reeseUrl = this.urlToParse + this.reeseResourcePath;
+  //   const { data: reeseScript } = await axios.get(reeseUrl, {
+  //     headers: {
+  //       'User-Agent': this.userAgent,
+  //       Cookie: cookieString,
+  //     },
+  //   });
+  //   this.logger.log(`[FETCHED REESE84 SCRIPT]`, { reeseScript: reeseScript.slice(0, 100) });
 
-      return { name, value };
-    });
-  }
-  async getIndexHtml(): Promise<{ cookies: Cookie[]; html: string }> {
-    const url = this.urlToParse + '/';
-    const headers = {
-      // 'Content-Type': 'application/json; charset=utf-8',
-      // Host: 'jobs.dubizzle.com',
-      // Referer: 'https://jobs.dubizzle.com/jobs/',
-      // Accept: 'application/json',
-      // 'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-    };
+  //   //3 GET /_Incapsula_Resource?SWJIYLWA=719....
+  //   // const utmvcResource = this.hyperSdk.parseUtmvcResourcePath(html)!;
+  //   // this.logger.log(`[PARSING] utmvc path: ${utmvcResource}`);
+  //   // const utmvcUrl = this.urlToParse + utmvcResource;
+  //   // const { data: utmvcScript } = await axios.get(utmvcUrl, {
+  //   //   headers: {
+  //   //     'User-Agent': this.userAgent,
+  //   //     Cookie: cookieString,
+  //   //   },
+  //   // });
 
-    try {
-      const resp = await axios.get<string>(url, { headers });
-      const cookies = resp.headers['set-cookie'];
-      const parsedCookies: Cookie[] = this.parseCookies(cookies!);
+  //   // this.logger.log(`[FETCHED UTMVC SCRIPT]`, { utmvcScript: utmvcScript.slice(0, 100) });
 
-      return { cookies: parsedCookies, html: resp.data as string };
-    } catch (error: any) {
-      this.logger.error(`Failed to fetch Google index page`, error.stack);
-      throw new Error(`Failed to fetch Google index page. Status: ${error.response?.status || 'Network Error'}`);
-    }
-  }
+  //   // 4 https://uae.dubizzle.com/en/user/auth/       ===> PARDON OUR INTERAPTION....
+  //   // ====> HTML ===> PARSING...===>/Spurre-Onell-vp-Ente... script
 
+  //   //HYPER SDK MAGIC to get reese84 and utmvc
+
+  //   // 5 https://uae.dubizzle.com/Spurre-Onell-vp-Enter-feed-ere-Yourthe-away-riso/4088261707997073925?s=FtKYLY56 [FROM STEP 4]
+
+  //   // HYPER SDK MAGIC to get new reese84
+  //   // 6
+  // }
+  async getVacancies() {}
   async scrap() {
-    this.logger.log('[START] scrapping...');
-    //1 GET INDEX.HTML
-    const { cookies, html } = await this.getIndexHtml();
-    const cookieString = transformCookiesToCookieString(cookies);
-    this.logger.log(`[PARSING]`, { html: html.slice(0, 100), cookies });
-
-    //2 GET/We-a-did-and-He-him-as-desir-call-their-Banquo-B
-    const reeseUrl = this.urlToParse + this.reeseResourcePath;
-    const { data: reeseScript } = await axios.get(reeseUrl, {
-      headers: {
-        'User-Agent': this.userAgent,
-        Cookie: cookieString,
-      },
-    });
-    this.logger.log(`[FETCHED REESE84 SCRIPT]`, { reeseScript: reeseScript.slice(0, 100) });
-
-    //3 GET /_Incapsula_Resource?SWJIYLWA=719....
-    // const utmvcResource = this.hyperSdk.parseUtmvcResourcePath(html)!;
-    // this.logger.log(`[PARSING] utmvc path: ${utmvcResource}`);
-    // const utmvcUrl = this.urlToParse + utmvcResource;
-    // const { data: utmvcScript } = await axios.get(utmvcUrl, {
-    //   headers: {
-    //     'User-Agent': this.userAgent,
-    //     Cookie: cookieString,
-    //   },
-    // });
-
-    // this.logger.log(`[FETCHED UTMVC SCRIPT]`, { utmvcScript: utmvcScript.slice(0, 100) });
-
-    // 4 https://uae.dubizzle.com/en/user/auth/       ===> PARDON OUR INTERAPTION....
-    // ====> HTML ===> PARSING...===>/Spurre-Onell-vp-Ente... script
-
-    //HYPER SDK MAGIC to get reese84 and utmvc
-
-    // 5 https://uae.dubizzle.com/Spurre-Onell-vp-Enter-feed-ere-Yourthe-away-riso/4088261707997073925?s=FtKYLY56 [FROM STEP 4]
-
-    // HYPER SDK MAGIC to get new reese84
-    // 6
-  }
-  async testSdk() {
-    // this.logger.log(this.hyperSdk.onModuleInit.toString());
+    const domain = this.jobsDomain;
+    const session = this.browserSessionRepo.findLatestSession(domain);
+    this.logger.log(session);
+    const vacancies = await this.getVacancies();
   }
 }

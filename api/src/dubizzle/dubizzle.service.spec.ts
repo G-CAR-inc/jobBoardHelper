@@ -3,6 +3,7 @@ import { DubizzleService } from './dubizzle.service';
 import { Logger } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
+import { BrowserSessionRepository } from './repositories/browser-session.repository';
 describe('DubizzleService', () => {
   let service: DubizzleService;
 
@@ -11,7 +12,7 @@ describe('DubizzleService', () => {
       imports: [
         ConfigModule.forRoot({
           isGlobal: true,
-          // envFilePath: '.env.test', 
+          // envFilePath: '.env.test',
         }),
         HttpModule.register({
           baseURL: 'https://jobs.dubizzle.com',
@@ -19,7 +20,7 @@ describe('DubizzleService', () => {
           maxRedirects: 5,
         }),
       ],
-      providers: [DubizzleService],
+      providers: [DubizzleService, BrowserSessionRepository],
     })
       .setLogger(new Logger())
       .compile();
