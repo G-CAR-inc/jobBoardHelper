@@ -1,4 +1,3 @@
-
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
@@ -154,9 +153,20 @@ export class DubizzleService implements OnModuleInit {
     const url = `${this.urlToParse}/svc/ats/api/v1/listing?status=live`;
     return this.fetch({ url, cookieString, access_token, method: 'GET' });
   }
+  getApplies(props: { vacancyIds: string[]; cookieString: string; access_token: string }) {
+    const { vacancyIds, cookieString, access_token } = props;
+
+    return Promise.all(
+      vacancyIds.map((vacancyId) => {
+        const url = `${this.urlToParse}/svc/ats/api/v4/application?job_listing=${vacancyId}&is_in_pipeline=1&sort_by=created_at`;
+        return this.fetch({ url, cookieString, access_token, method: 'GET' });
+      }),
+    );
+  }
   async scrap() {
     const domain = this.jobsDomain;
     const session = await this.browserSessionRepo.findLatestSession(domain);
+
     const { access_token } = session?.localStorage! as unknown as { access_token: string };
     const cookies = session?.cookies as unknown as {
       name: string;
@@ -168,7 +178,16 @@ export class DubizzleService implements OnModuleInit {
       .filter((cookie) => !!cookie)
       .join('; ');
     this.logger.log({ cookieString });
-    const vacancies = await this.getVacancies({ cookieString, access_token });
-    this.logger.log(vacancies)
+
+    const vacancyResp = await this.getVacancies({ cookieString, access_token });
+    const { results: vacancies } = vacancyResp;
+    const vacancyIds: string[] = vacancies.map((v: { id: string }) => v.id);
+
+    this.logger.log(vacancyIds);
+
+    //APPLIES
+
+    const applies = await this.getApplies({ vacancyIds, cookieString, access_token });
+    this.logger.log(applies)
   }
 }
