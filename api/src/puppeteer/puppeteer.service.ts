@@ -21,8 +21,8 @@ export class PuppeteerService implements OnModuleInit {
   }
 
   async refreshTokens() {
-    const urlToParse = this.configService.getOrThrow<string>('URL_TO_PARSE');
-    const domain = new URL(urlToParse).hostname;
+    const legitRefferer = this.configService.getOrThrow<string>('LEGIT_REFERRER');
+    const domain = new URL(legitRefferer).hostname;
 
     const initMagicLink = this.configService.get<string>('INIT_MAGIC_LINK');
     const userAgent = this.configService.get<string>('USER_AGENT');
@@ -76,8 +76,8 @@ export class PuppeteerService implements OnModuleInit {
           await page.browserContext().setCookie(...(cookiesToRestore as any[]));
         }
 
-        this.logger.log(`Navigating to ${urlToParse} to inject storage...`);
-        await page.goto(urlToParse, { waitUntil: 'domcontentloaded' });
+        this.logger.log(`Navigating to ${legitRefferer} to inject storage...`);
+        await page.goto(legitRefferer, { waitUntil: 'domcontentloaded' });
 
         await page.evaluate(
           (ls, ss) => {
@@ -97,9 +97,9 @@ export class PuppeteerService implements OnModuleInit {
       }
 
       // 3) Navigate to target
-      if (page.url() !== urlToParse) {
-        this.logger.log(`Navigating to target: ${urlToParse}`);
-        await page.goto(urlToParse, { waitUntil: 'networkidle2' });
+      if (page.url() !== legitRefferer) {
+        this.logger.log(`Navigating to target: ${legitRefferer}`);
+        await page.goto(legitRefferer, { waitUntil: 'networkidle2' });
       }
 
       // --- WAIT LOGIC ---

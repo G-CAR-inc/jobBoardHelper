@@ -1,3 +1,4 @@
+
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
@@ -107,14 +108,56 @@ export class DubizzleService implements OnModuleInit {
   //   // HYPER SDK MAGIC to get new reese84
   //   // 6
   // }
-  async fetch(props: { url: string; headers: Record<string, string>; body: any; cookieString: string }) {
-    const { url, headers: inpHeaders, body: inpBody, cookieString } = props;
+  async fetch(props: {
+    url: string;
+    headers?: Record<string, string>;
+    body?: any;
+    cookieString: string;
+    access_token: string;
+    method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; // Optional: infer from body if missing
+  }) {
+    const { url, headers: customHeaders = {}, body, cookieString, access_token, method } = props;
+
+    // 1. Construct Default Headers
+    const headers = {
+      Accept: 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'User-Agent': this.userAgent,
+      'x-access-token': access_token, // Custom auth header
+      Cookie: cookieString,
+      ...customHeaders, // Allow specific overrides
+    };
+
+    // 2. Determine HTTP Method (Default to POST if body exists, else GET)
+    const requestMethod = method || (body ? 'POST' : 'GET');
+
+    try {
+      // 3. Execute Request using the underlying Axios instance
+      const response = await this.httpService.axiosRef.request({
+        url,
+        method: requestMethod,
+        headers,
+        data: body,
+      });
+
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error.message}`, error.response?.data);
+      } else {
+        this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error}`);
+      }
+      throw error;
+    }
   }
-  async getVacancies() {}
+  getVacancies({ cookieString, access_token }: { cookieString: string; access_token: string }) {
+    const url = `${this.urlToParse}/svc/ats/api/v1/listing?status=live`;
+    return this.fetch({ url, cookieString, access_token, method: 'GET' });
+  }
   async scrap() {
     const domain = this.jobsDomain;
     const session = await this.browserSessionRepo.findLatestSession(domain);
-    this.logger.log(session?.cookies);
+    const { access_token } = session?.localStorage! as unknown as { access_token: string };
     const cookies = session?.cookies as unknown as {
       name: string;
       value: string;
@@ -125,6 +168,7 @@ export class DubizzleService implements OnModuleInit {
       .filter((cookie) => !!cookie)
       .join('; ');
     this.logger.log({ cookieString });
-    const vacancies = await this.getVacancies();
+    const vacancies = await this.getVacancies({ cookieString, access_token });
+    this.logger.log(vacancies)
   }
 }
