@@ -187,7 +187,7 @@ export class DubizzleService implements OnModuleInit {
 
     //APPLIES
 
-    const applies = await this.getApplies({ vacancyIds, cookieString, access_token });
-    this.logger.log(applies)
+    const [applies] = await this.getApplies({ vacancyIds, cookieString, access_token });
+    this.logger.log(applies.results[0])
   }
 }
