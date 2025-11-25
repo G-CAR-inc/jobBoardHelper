@@ -9,6 +9,8 @@ import { URL } from 'url';
 @Injectable()
 export class PuppeteerService implements OnModuleInit {
   private readonly logger = new Logger(PuppeteerService.name);
+  private email: string;
+  private password: string;
 
   constructor(
     private readonly configService: ConfigService,
@@ -18,8 +20,106 @@ export class PuppeteerService implements OnModuleInit {
   onModuleInit() {
     puppeteer.use(StealthPlugin());
     this.logger.log('Puppeteer Stealth Plugin initialized');
+
+    // Load credentials from environment variables
+    this.email = this.configService.get<string>('DUBIZZLE_EMAIL') || '';
+    this.password = this.configService.get<string>('DUBIZZLE_PASSWORD') || '';
   }
 
+  async authFlow() {
+    const executablePath = process.env.CHROME_PATH || '/usr/bin/google-chrome';
+    const userAgent = this.configService.get<string>('USER_AGENT');
+
+    this.logger.log(`Starting Auth Flow (Puppeteer) with Email: ${this.email}`);
+
+    const browser = await puppeteer.launch({
+      headless: false, // Visible for debugging
+      executablePath,
+      defaultViewport: null,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--window-size=1920,1080',
+        ...(userAgent ? [`--user-agent=${userAgent}`] : []),
+      ],
+    });
+
+    try {
+      const page = await browser.newPage();
+
+      // 1. GOTO auth page
+      this.logger.log('Navigating to auth page...');
+      await page.goto('https://uae.dubizzle.com/user/auth/', { waitUntil: 'domcontentloaded' });
+
+      // 2. click "Continue with Email"
+      // Puppeteer doesn't have getByText, so we use XPath to find text
+      this.logger.log('Clicking "Continue with Email"...');
+
+      // Wait for the button to be available in the DOM
+      const emailBtnSelector = 'xpath/.//*[contains(text(), "Continue with Email")]';
+      await page.waitForSelector(emailBtnSelector);
+
+      const [emailBtn] = await page.$$(emailBtnSelector);
+      if (emailBtn) {
+        await emailBtn.click();
+      } else {
+        throw new Error('Button "Continue with Email" not found');
+      }
+
+      // 3. find input with 'Email' placeholder & insert email
+      this.logger.log('Entering email...');
+      const emailInputSelector = 'input[placeholder="Email"]';
+      await page.waitForSelector(emailInputSelector);
+      await page.type(emailInputSelector, this.email);
+
+      // 4. find input with 'Password' placeholder & insert password
+      this.logger.log('Entering password...');
+      const passwordInputSelector = 'input[placeholder="Password"]';
+      await page.waitForSelector(passwordInputSelector);
+      await page.type(passwordInputSelector, this.password);
+
+      // 5. click submit button
+      this.logger.log('Submitting credentials...');
+      const submitBtnSelector = 'button[type="submit"]';
+      await page.waitForSelector(submitBtnSelector);
+      await page.click(submitBtnSelector);
+
+      // Wait for network activity to settle or a specific timeout to allow transition
+      this.logger.log('Waiting for transition...');
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // 6. choose "Verify with Email" button
+      this.logger.log('Selecting "Verify with Email"...');
+      const verifyBtnSelector = 'xpath/.//*[contains(text(), "Verify with Email")]';
+
+      // We try to find it, but wrap in try-catch in case it auto-skipped or isn't there
+      try {
+        const [verifyBtn] = await page.$$(verifyBtnSelector);
+        if (verifyBtn) {
+          await verifyBtn.click();
+        }
+      } catch (e) {
+        this.logger.log('"Verify with Email" button not found or flow different');
+      }
+
+      // 7. click submit button (Confirm verification)
+      this.logger.log('Confirming verification method...');
+      // Check visibility to avoid clicking if not present
+      if (await page.$(submitBtnSelector)) {
+        // Ensure it is visible before clicking
+        await page.waitForSelector(submitBtnSelector, { visible: true, timeout: 3000 }).catch(() => null);
+        await page.click(submitBtnSelector).catch((e) => this.logger.log('Submit click skipped or failed', e.message));
+      }
+
+      this.logger.log('Flow complete. Waiting 5s before closing...');
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    } catch (error) {
+      this.logger.error('Error executing authFlow', error);
+    } finally {
+      await browser.close();
+    }
+  }
   async refreshTokens() {
     const legitRefferer = this.configService.getOrThrow<string>('LEGIT_REFERRER');
     const domain = new URL(legitRefferer).hostname;
