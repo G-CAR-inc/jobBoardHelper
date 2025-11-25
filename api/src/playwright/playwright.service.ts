@@ -11,16 +11,22 @@ import { getPublicIp } from '../utils/shared/srared.utils';
 export class PlaywrightService implements OnModuleInit {
   private readonly logger = new Logger(PlaywrightService.name);
   private hyperSolutionsApiKey: string;
+  private legitRefferer: string;
+  private userAgent: string;
+  private initMagicLink: string;
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
   ) {}
   onModuleInit() {
     this.hyperSolutionsApiKey = this.config.getOrThrow<string>('HYPER_SDK_API_KEY');
+    this.legitRefferer = this.config.getOrThrow<string>('LEGIT_REFERRER');
+    this.initMagicLink = this.config.getOrThrow<string>('INIT_MAGIC_LINK');
+    this.userAgent = this.config.getOrThrow<string>('USER_AGENT');
   }
 
   async flow() {
-    this.logger.log(`hyper solution api key: ${this.hyperSolutionsApiKey}`)
+    this.logger.log(`hyper solution api key: ${this.hyperSolutionsApiKey}`);
     // const session = new Session(this.hyperSolutionsApiKey);
 
     // Launch browser with proxy (recommended)
@@ -29,7 +35,7 @@ export class PlaywrightService implements OnModuleInit {
     });
 
     const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+      userAgent: this.userAgent,
     });
 
     const page = await context.newPage();
