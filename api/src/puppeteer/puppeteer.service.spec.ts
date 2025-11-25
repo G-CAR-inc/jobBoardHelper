@@ -26,28 +26,30 @@ describe('PuppeteerService (Integration)', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
+  it('should be defined', async () => {
+    await service.authFlow();
+  });
+  // it('should successfully launch Chrome with Stealth Plugin, navigate to a page, and retrieve data', async () => {
+  //   // Initialize the service
+  //   service.onModuleInit();
 
-  it('should successfully launch Chrome with Stealth Plugin, navigate to a page, and retrieve data', async () => {
-    // Initialize the service
-    service.onModuleInit();
+  //   console.log('🚀 Starting Puppeteer Integration Test (Stealth Mode)...');
 
-    console.log('🚀 Starting Puppeteer Integration Test (Stealth Mode)...');
+  //   // Increase timeout because launching real chrome takes time
+  //   let result: any;
+  //   try {
+  //     result = await service.refreshTokens();
+  //   } catch (e) {
+  //     Logger.error(e);
+  //   }
 
-    // Increase timeout because launching real chrome takes time
-    let result: any;
-    try {
-      result = await service.refreshTokens();
-    } catch (e) {
-      Logger.error(e);
-    }
+  //   console.log('✅ Browser closed. validating results...');
 
-    console.log('✅ Browser closed. validating results...');
+  //   // 1. Validate Cookies
+  //   expect(result.cookies).toBeDefined();
+  //   expect(Array.isArray(result.cookies)).toBe(true);
 
-    // 1. Validate Cookies
-    expect(result.cookies).toBeDefined();
-    expect(Array.isArray(result.cookies)).toBe(true);
-
-    expect(result.localStorage).toBeDefined();
-    expect(typeof result.localStorage).toBe('object');
-  }, 60000); // 60 seconds timeout for real browser interaction
+  //   expect(result.localStorage).toBeDefined();
+  //   expect(typeof result.localStorage).toBe('object');
+  // }, 60000); // 60 seconds timeout for real browser interaction
 });

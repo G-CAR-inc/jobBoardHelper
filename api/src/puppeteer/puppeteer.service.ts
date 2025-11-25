@@ -51,7 +51,7 @@ export class PuppeteerService implements OnModuleInit {
       // 1. GOTO auth page
       this.logger.log('Navigating to auth page...');
       await page.goto('https://uae.dubizzle.com/user/auth/', { waitUntil: 'domcontentloaded' });
-
+      return;
       // 2. click "Continue with Email"
       // Puppeteer doesn't have getByText, so we use XPath to find text
       this.logger.log('Clicking "Continue with Email"...');
@@ -117,7 +117,7 @@ export class PuppeteerService implements OnModuleInit {
     } catch (error) {
       this.logger.error('Error executing authFlow', error);
     } finally {
-      await browser.close();
+      // await browser.close();
     }
   }
   async refreshTokens() {
