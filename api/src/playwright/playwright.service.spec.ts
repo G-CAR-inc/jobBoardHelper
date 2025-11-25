@@ -22,6 +22,6 @@ describe('PlaywrightService', () => {
     expect(service).toBeDefined();
   });
   it('should log ip', async () => {
-    await service.flow();
+    await service.authFlow();
   }, 15000);
 });

@@ -5,7 +5,8 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { getPublicIp } from '../utils/shared/srared.utils';
-import { IncapsulaHandler } from './hypersdk/incapsula-handler/incapsula-handler';
+
+import { IncapsulaHandler } from 'hyper-sdk-playwright';
 
 @Injectable()
 export class PlaywrightService implements OnModuleInit {
@@ -28,7 +29,6 @@ export class PlaywrightService implements OnModuleInit {
     this.userAgent = this.config.getOrThrow<string>('USER_AGENT');
     this.email = this.config.get<string>('DUBIZZLE_EMAIL') || '';
     this.password = this.config.get<string>('DUBIZZLE_PASSWORD') || '';
-    this.authFlow();
   }
   async authFlow() {
     this.logger.log(`Starting Auth Flow with Email: ${this.email}`);
@@ -50,6 +50,7 @@ export class PlaywrightService implements OnModuleInit {
 
       const { ip } = await getPublicIp();
       this.logger.log({ ip });
+
       const incapsulaHandler = new IncapsulaHandler({
         session,
         ipAddress: ip,
@@ -112,7 +113,7 @@ export class PlaywrightService implements OnModuleInit {
     } catch (error) {
       this.logger.error('Error executing authFlow', error);
     } finally {
-    //   await browser.close();
+      //   await browser.close();
     }
   }
   async flow() {
