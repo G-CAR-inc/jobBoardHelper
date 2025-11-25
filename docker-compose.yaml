@@ -13,21 +13,21 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  api:
-    build: .
-    container_name: jobboard-api
-    depends_on:
-      - postgres
-    ports:
-      - "3000:3000"
-    environment:
-      # Connect to the postgres service defined above
-      DATABASE_URL: "postgresql://myuser:mypassword@postgres:5432/jobboard?schema=public"
-      # Use the internal chrome path
-      CHROME_PATH: "/usr/bin/google-chrome-stable"
-      # Other env vars
-      USER_AGENT: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)..."
-      URL_TO_PARSE: "https://dubai.dubizzle.com/"
+  # api:
+  #   build: .
+  #   container_name: jobboard-api
+  #   depends_on:
+  #     - postgres
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     # Connect to the postgres service defined above
+  #     DATABASE_URL: "postgresql://myuser:mypassword@postgres:5432/jobboard?schema=public"
+  #     # Use the internal chrome path
+  #     CHROME_PATH: "/usr/bin/google-chrome-stable"
+  #     # Other env vars
+  #     USER_AGENT: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)..."
+  #     URL_TO_PARSE: "https://dubai.dubizzle.com/"
 
 volumes:
   postgres_data:
