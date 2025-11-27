@@ -5,8 +5,9 @@ import { DubizzleModule } from './dubizzle/dubizzle.module';
 import { ConfigModule } from '@nestjs/config';
 import { PuppeteerModule } from './puppeteer/puppeteer.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { BypassModule } from './bypass/bypass.module';
 
 @Module({
-  imports: [DubizzleModule, ConfigModule.forRoot({ isGlobal: true }), PuppeteerModule, PrismaModule],
+  imports: [DubizzleModule, ConfigModule.forRoot({ isGlobal: true }), PuppeteerModule, PrismaModule, BypassModule],
 })
 export class AppModule {}

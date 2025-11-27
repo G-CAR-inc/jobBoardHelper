@@ -20,7 +20,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:hyper-sdk": "npm run test -- src/hyper-sdk/hyper-sdk.service.spec.ts",
     "test:dubizzle": "npm run test -- src/dubizzle/dubizzle.service.spec.ts",
-    "test:puppeteer": "npm run test -- src/puppeteer/puppeteer.service.spec.ts"
+    "test:puppeteer": "npm run test -- src/puppeteer/puppeteer.service.spec.ts",
+    "test:bypass": "npm run test -- src/bypass/bypass.service.spec.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
