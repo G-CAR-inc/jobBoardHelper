@@ -27,7 +27,7 @@ describe('PuppeteerService (Integration)', () => {
     expect(service).toBeDefined();
   });
   it('should be defined', async () => {
-    await service.authFlow();
+    await service.refreshTokens();
   });
   // it('should successfully launch Chrome with Stealth Plugin, navigate to a page, and retrieve data', async () => {
   //   // Initialize the service
