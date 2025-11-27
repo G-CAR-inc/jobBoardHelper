@@ -20,7 +20,7 @@ describe('DubizzleService', () => {
           timeout: 5000,
           maxRedirects: 5,
         }),
-        PrismaModule
+        PrismaModule,
       ],
       providers: [DubizzleService, BrowserSessionRepository],
     })

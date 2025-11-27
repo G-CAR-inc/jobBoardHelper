@@ -148,7 +148,9 @@ export class PuppeteerService implements OnModuleInit {
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--window-size=1920,1080',
-          ...(userAgent ? [`--user-agent=${userAgent}`] : []),
+          // ...(userAgent ? [`--user-agent=${userAgent}`] : []
+
+          // ),
         ],
       });
 

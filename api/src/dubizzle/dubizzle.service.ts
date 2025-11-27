@@ -180,6 +180,7 @@ export class DubizzleService implements OnModuleInit {
     this.logger.log({ cookieString });
 
     const vacancyResp = await this.getVacancies({ cookieString, access_token });
+    this.logger.log(vacancyResp);
     const { results: vacancies } = vacancyResp;
     const vacancyIds: string[] = vacancies.map((v: { id: string }) => v.id);
 
@@ -188,6 +189,6 @@ export class DubizzleService implements OnModuleInit {
     //APPLIES
 
     const [applies] = await this.getApplies({ vacancyIds, cookieString, access_token });
-    this.logger.log(applies.results[0])
+    this.logger.log(applies);
   }
 }
