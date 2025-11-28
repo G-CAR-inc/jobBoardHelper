@@ -47,6 +47,7 @@ model Reese84Token {
   token      String
   renewInSec Int      @map("renew_in_sec")
   createdAt  DateTime @map("created_at") 
+  domain     String
 
   sessionId String   @map("session_id")
   session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)

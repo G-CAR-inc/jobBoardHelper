@@ -3,6 +3,7 @@ import { DubizzleService } from './dubizzle.service';
 import { DubizzleController } from './dubizzle.controller';
 import { HttpModule } from '@nestjs/axios';
 import { BrowserSessionRepository } from './repositories/browser-session.repository';
+import { BypassRepository } from './repositories/bypass.repository';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { BrowserSessionRepository } from './repositories/browser-session.reposit
     }),
   ],
   controllers: [DubizzleController],
-  providers: [DubizzleService, BrowserSessionRepository],
+  providers: [DubizzleService, BrowserSessionRepository, BypassRepository],
   exports: [DubizzleService],
 })
 export class DubizzleModule {}
