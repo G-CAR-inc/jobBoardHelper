@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import axios, { AxiosError } from 'axios';
 // Import CookieJar from tough-cookie
 import { Cookie, CookieJar } from 'tough-cookie';
@@ -22,6 +22,7 @@ import {
 } from 'hyper-sdk-js';
 import { getPublicIp } from '../utils/shared/srared.utils';
 import { reese84Token } from './types';
+import { BypassRepository } from './repositories/bypass.repository';
 @Injectable()
 export class DubizzleService implements OnModuleInit {
   private readonly logger = new Logger(DubizzleService.name);
@@ -38,9 +39,10 @@ export class DubizzleService implements OnModuleInit {
 
   private cookieJar = new CookieJar();
   constructor(
-    private readonly http: HttpService,
-    private readonly browserSessionRepo: BrowserSessionRepository,
-    private readonly config: ConfigService,
+    @Inject() private readonly http: HttpService,
+    @Inject() private readonly browserSessionRepo: BrowserSessionRepository,
+    @Inject() private readonly config: ConfigService,
+    @Inject() private readonly bypassRepo: BypassRepository,
   ) {}
 
   async onModuleInit() {
@@ -129,36 +131,20 @@ export class DubizzleService implements OnModuleInit {
     if (utmvcScriptPath) {
     }
     //DYNAMIC REESE84
-    let dynamicScript: {
-      sensorPath: string;
-      scriptPath: string;
-    };
-    let lastContentType: string;
-    let dynamicReeseScript: string;
-    let currentHtml = indexHtml;
+    const dynamicScript = parseDynamicReeseScript(indexHtml, rootUrl);
+    // get reese84 sensor script
+    const dynamicReeseUrl = protocol + '//' + domain + dynamicScript.scriptPath;
+    const { data: dynamicReeseScript, contentType } = await this.fetch({
+      url: dynamicReeseUrl,
+      referer: rootUrl,
+    });
 
-    do {
-      dynamicScript = parseDynamicReeseScript(currentHtml, rootUrl);
-      // get reese84 sensor script
-      const dynamicReeseUrl = protocol + '//' + domain + dynamicScript.scriptPath;
-      const { data: script, contentType } = await this.fetch({
-        url: dynamicReeseUrl,
-        referer: rootUrl,
-      });
-      lastContentType = contentType as string;
-      dynamicReeseScript = script;
-      this.logger.log({
-        message: 'Dynamic script fetched',
-        scriptPreview: dynamicReeseScript.slice(0, 100),
-        // dynamicReeseScript,
-        contentType,
-      });
-      if (contentType == 'text/html') {
-        currentHtml = script;
-      } else {
-        break;
-      }
-    } while (lastContentType == 'text/html');
+    this.logger.log({
+      message: 'Dynamic script fetched',
+      scriptPreview: dynamicReeseScript.slice(0, 100),
+      // dynamicReeseScript,
+      contentType,
+    });
 
     //cookies
     const hyperCookies = await this.getHyperCookies(rootUrl);
