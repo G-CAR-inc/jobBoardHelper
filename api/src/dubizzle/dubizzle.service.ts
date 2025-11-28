@@ -1,9 +1,10 @@
+import { reese84Token } from './types/auth.types';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import axios, { AxiosError } from 'axios';
 // Import CookieJar from tough-cookie
-import { CookieJar } from 'tough-cookie';
+import { Cookie, CookieJar } from 'tough-cookie';
 // Import helper to promisify if needed, though modern tough-cookie uses promises for some methods,
 // usually setCookie/getCookieString are async in the latest versions or require callbacks.
 // We will assume the standard async usage.
@@ -21,6 +22,7 @@ import {
   generateReese84Sensor,
 } from 'hyper-sdk-js';
 import { getPublicIp } from '../utils/shared/srared.utils';
+import { reese84Token } from './types';
 @Injectable()
 export class DubizzleService implements OnModuleInit {
   private readonly logger = new Logger(DubizzleService.name);
@@ -120,45 +122,63 @@ export class DubizzleService implements OnModuleInit {
     });
     //1 GET INDEX.HTML
     const { data: indexHtml, setCookie: indexHtmlSetCookies } = await this.fetch({ url: rootUrl });
-
-   
-
-    await this.updateCookieJar(indexHtmlSetCookies, rootUrl);
+    this.logger.log({ indexHtml });
     // UTMVC
-    const resourcePath = parseUtmvcScriptPath(indexHtml);
+    const utmvcScriptPath = parseUtmvcScriptPath(indexHtml);
     const submitPath = generateUtmvcScriptPath();
-
+    let utmvc: string;
+    if (utmvcScriptPath) {
+      //TODO: implement utmvc logic
+    }
     //DYNAMIC REESE84
-    const dynamicScript = parseDynamicReeseScript(indexHtml, rootUrl);
+    let dynamicScript: {
+      sensorPath: string;
+      scriptPath: string;
+    };
+    let lastContentType: string;
+    let dynamicReeseScript: string;
+    let currentHtml = indexHtml;
+
+    do {
+      dynamicScript = parseDynamicReeseScript(currentHtml, rootUrl);
+      // get reese84 sensor script
+      const dynamicReeseUrl = protocol + domain + dynamicScript.scriptPath;
+      const { data: script, contentType } = await this.fetch({
+        url: dynamicReeseUrl,
+      });
+      lastContentType = contentType as string;
+      dynamicReeseScript = script;
+      this.logger.log({
+        message: 'Dynamic script fetched',
+        // scriptPreview: dynamicReeseScript.slice(0, 100),
+        dynamicReeseScript,
+        contentType,
+      });
+      if (contentType == 'text/html') {
+        currentHtml = script;
+      } else {
+        break;
+      }
+    } while (lastContentType == 'text/html');
+    return;
 
     //cookies
     const hyperCookies = await this.getHyperCookies(rootUrl);
-    const cookieString = await this.getCookieString(rootUrl);
 
     //sesion ids
     const sessionIds = getSessionIds(hyperCookies);
     this.logger.log({
       message: 'State before dynamic script fetch',
-      cookieString,
+
       sessionIds,
-      resourcePath,
+      resourcePath: utmvcScriptPath,
       dynamicScript,
       submitPath,
     });
 
-    // get reese84 sensor script
-    const dynamicReeseUrl = domain + dynamicScript.scriptPath;
-    const { data: dynamicReeseScript, setCookie: dynamicReeseSetCookie } = await this.fetch({
-      url: dynamicReeseUrl,
-    });
-    this.updateCookieJar(dynamicReeseSetCookie, dynamicReeseUrl);
-    this.logger.log({
-      message: 'Dynamic script fetched',
-      scriptPreview: dynamicReeseScript.slice(0, 100),
-      newCookies: dynamicReeseSetCookie,
-    });
     // Generate the sensor payload via hypersoultion sdk
-    const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, authUrl, dynamicReeseScript, dynamicReeseUrl);
+    const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, rootUrl, dynamicReeseScript, dynamicScript.scriptPath);
+    this.logger.log({ reeseInput });
     const session = new Session(this.config.getOrThrow<string>('HYPER_SDK_API_KEY'));
     const sensor = await generateReese84Sensor(session, reeseInput);
     this.logger.log({ message: 'sensor solved', sensor: sensor.slice(0, 100) });
@@ -167,10 +187,16 @@ export class DubizzleService implements OnModuleInit {
 
     const reeeseSensorUrl = protocol + domain + dynamicScript.sensorPath;
     const reeseTimeStamp = new Date();
-    const reeseToken = await this.fetch({ url: reeeseSensorUrl, body: sensor });
+    const { data: reeseToken } = (await this.fetch({ url: reeeseSensorUrl, body: sensor })) as { data: reese84Token };
     this.logger.log({ message: 'dubizzle response', reeseToken });
+    await this.setReese84Cookie(reeseToken);
 
     return;
+  }
+
+  async authorize() {
+    const rootUrl = 'https://uae.dubizzle.com/en/user/auth/';
+    const incapsulaJs = await this.bypassIncapsula(rootUrl);
   }
   async fetch(props: {
     url: string;
@@ -204,9 +230,11 @@ export class DubizzleService implements OnModuleInit {
         data: body,
       });
       const { data, headers: respHeaders } = response;
-      const setCookie = respHeaders['set-cookie'];
+      const contentType = response.headers['content-type'];
 
-      return { data, setCookie };
+      const setCookie = respHeaders['set-cookie'];
+      await this.updateCookieJar(setCookie, url);
+      return { data, setCookie, contentType };
     } catch (error) {
       if (axios.isAxiosError(error)) {
         this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error.message}`, error.response?.data);
@@ -218,17 +246,49 @@ export class DubizzleService implements OnModuleInit {
   }
   getVacancies({ cookieString, access_token }: { cookieString: string; access_token: string }) {
     const url = `${this.urlToParse}/svc/ats/api/v1/listing?status=live`;
-    return this.fetch({ url, cookieString, access_token, method: 'GET' });
+    return this.fetch({ url, access_token, method: 'GET' });
   }
   getApplies(props: { vacancyIds: string[]; cookieString: string; access_token: string }) {
-    const { vacancyIds, cookieString, access_token } = props;
+    const { vacancyIds, access_token } = props;
 
     return Promise.all(
       vacancyIds.map((vacancyId) => {
         const url = `${this.urlToParse}/svc/ats/api/v4/application?job_listing=${vacancyId}&is_in_pipeline=1&sort_by=created_at`;
-        return this.fetch({ url, cookieString, access_token, method: 'GET' });
+        return this.fetch({ url, access_token, method: 'GET' });
       }),
     );
+  }
+  /**
+   * Sets the 'reese84' cookie from the provided JSON token object.
+   */
+  async setReese84Cookie(tokenData: reese84Token) {
+    const { token, renewInSec, cookieDomain } = tokenData;
+
+    // 1. Construct the Cookie object
+    // using tough-cookie's Cookie class ensures proper formatting
+    const cookie = new Cookie({
+      key: 'reese84',
+      value: token,
+      domain: cookieDomain,
+      path: '/',
+      maxAge: renewInSec, // 'renewInSec' maps directly to Max-Age
+      secure: true, // Usually required for these security tokens
+      httpOnly: true, // Best practice
+    });
+
+    // 2. Determine a valid URL for the context
+    // tough-cookie requires a URL to validate the domain.
+    // We strip any leading '.' from the domain (e.g. .dubizzle.com -> dubizzle.com)
+    const normalizedDomain = cookieDomain.startsWith('.') ? cookieDomain.substring(1) : cookieDomain;
+    const contextUrl = `https://${normalizedDomain}/`;
+
+    // 3. Store it in the jar
+    try {
+      await this.cookieJar.setCookie(cookie, contextUrl);
+      this.logger.log(`Successfully set reese84 cookie for ${cookieDomain}`);
+    } catch (error) {
+      this.logger.error(`Failed to set reese84 cookie: ${error.message}`);
+    }
   }
   async scrap() {
     const domain = this.jobsDomain;

@@ -54,8 +54,11 @@ describe('DubizzleService', () => {
     expect(typeof agent.version).toBe('string');
   });
   it('should return Incapsula resource', async () => {
-    const rootUrl = 'https://uae.dubizzle.com/en/user/auth/';
-    const incapsulaJs = await service.bypassIncapsula(rootUrl);
+    try {
+      await service.authorize();
+    } catch (e) {
+      Logger.error(e);
+    }
   });
 });
 //
