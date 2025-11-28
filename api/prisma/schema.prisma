@@ -15,3 +15,58 @@ model BrowserSession {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
+
+model Session {
+  id        String   @id @default(uuid())
+  publicIp  String   @map("public_ip")
+  domain    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // 1:m Relations
+  utmvcTokens   UtmvcToken[]
+  reese84Tokens Reese84Token[]
+  cookies       Cookie[]
+
+  @@map("sessions")
+}
+
+model UtmvcToken {
+  id        String   @id @default(uuid())
+  token     String   
+  createdAt DateTime @map("created_at") 
+
+ 
+  sessionId String   @map("session_id")
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("utmvc_tokens")
+}
+
+model Reese84Token {
+  id         String   @id @default(uuid())
+  token      String
+  renewInSec Int      @map("renew_in_sec")
+  createdAt  DateTime @map("created_at") 
+
+  sessionId String   @map("session_id")
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("reese84_tokens")
+}
+
+model Cookie {
+  id       String  @id @default(uuid())
+  key      String  
+  value    String
+  domain   String
+  path     String  @default("/")
+  maxAge   Int?    @map("max_age") // Corresponds to renewInSec/Max-Age
+  secure   Boolean @default(true)
+  httpOnly Boolean @default(true) @map("http_only")
+
+  // Relation to Session
+  sessionId String  @map("session_id")
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("cookies")
+}
