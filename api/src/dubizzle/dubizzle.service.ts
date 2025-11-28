@@ -24,13 +24,10 @@ import { getPublicIp } from '../utils/shared/srared.utils';
 @Injectable()
 export class DubizzleService implements OnModuleInit {
   private readonly logger = new Logger(DubizzleService.name);
-  private currentSessionToken: string | null = null;
-  private currentRefreshToken: string | null = null;
-  private reese84Cookie: string | null = null;
-  private utmvcCookie: string | null = process.env.___utmvc || null;
 
   private urlToParse: string;
   private userAgent: string;
+  private acceptLanguage: string;
 
   private reeseResourcePath: string;
 
@@ -40,53 +37,34 @@ export class DubizzleService implements OnModuleInit {
 
   private cookieJar = new CookieJar();
   constructor(
-    private readonly httpService: HttpService,
+    private readonly http: HttpService,
     private readonly browserSessionRepo: BrowserSessionRepository,
-    private readonly configService: ConfigService,
+    private readonly config: ConfigService,
   ) {}
 
   async onModuleInit() {
-    const userAgent = this.configService.get<string>('USER_AGENT');
+    const userAgent = this.config.getOrThrow<string>('USER_AGENT');
 
-    const urlToParse = this.configService.get<string>('URL_TO_PARSE');
+    const urlToParse = this.config.getOrThrow<string>('URL_TO_PARSE');
 
-    const reeseResourcePath = this.configService.get<string>('REESE_RESOURCE_PATH');
-    const jobsDomain = this.configService.get<string>('JOBS_DOMAIN');
-    const uaeDomain = this.configService.get<string>('UAE_DOMAIN');
+    const reeseResourcePath = this.config.getOrThrow<string>('REESE_RESOURCE_PATH');
+    const jobsDomain = this.config.getOrThrow<string>('JOBS_DOMAIN');
+    const uaeDomain = this.config.getOrThrow<string>('UAE_DOMAIN');
+    const acceptLanguage = this.config.getOrThrow<string>('ACCEPT_LANGUAGE');
 
-    const errors: string[] = [];
-    if (!urlToParse) {
-      errors.push(`Config error. URL_TO_PARSE is can not be reached. ${new Date()}`);
-    }
-    if (!userAgent) {
-      errors.push(`Config error. USER_AGENT is can not be reached. ${new Date()}`);
-    }
-    if (!jobsDomain) {
-      errors.push(`Config error. JOBS_DOMAIN is can not be reached. ${new Date()}`);
-    }
-    if (!uaeDomain) {
-      errors.push(`Config error. UAE_DOMAIN is can not be reached. ${new Date()}`);
-    }
-    if (!reeseResourcePath) {
-      errors.push(`Config error. REESE_RESOURCE_PATH is can not be reached. ${new Date()}`);
-    }
-    if (errors.length > 0) {
-      const errorsStringified = errors.join('\n\n');
-      this.logger.error(errorsStringified);
-      throw new Error(errorsStringified);
-    }
-    const {
-      data: {
-        versions: [agent],
-      },
-    } = await this.getUserAgents();
-
-    this.urlToParse = urlToParse!;
-    this.userAgent = userAgent!;
+    // const {
+    //   data: {
+    //     versions: [agent],
+    //   },
+    // } = await this.getUserAgents();
     // this.userAgent = agent.name;
-    this.reeseResourcePath = reeseResourcePath!;
-    this.jobsDomain = jobsDomain!;
-    this.uaeDomain = uaeDomain!;
+    this.userAgent = userAgent;
+    this.acceptLanguage = acceptLanguage;
+
+    this.urlToParse = urlToParse;
+    this.reeseResourcePath = reeseResourcePath;
+    this.jobsDomain = jobsDomain;
+    this.uaeDomain = uaeDomain;
   } /**
    * Helper: Stores an array of Set-Cookie strings into the jar.
    * tough-cookie validates the domain, so we must provide the 'currentUrl'.
@@ -125,19 +103,25 @@ export class DubizzleService implements OnModuleInit {
   getUserAgents() {
     return this.fetch({ url: 'https://versionhistory.googleapis.com/v1/chrome/platforms/win/channels/stable/versions/' });
   }
-  async bypassIncapsula() {
+  async bypassIncapsula(rootUrl: string) {
     this.logger.log('[START] scrapping...');
+    const rootUrlObj = new URL(rootUrl);
 
-    const rootUrl = 'https://uae.dubizzle.com';
-    const acceptLanguage = 'en-US,en;q=0.9';
+    const domain = rootUrlObj.host;
+    const protocol = rootUrlObj.protocol;
     const { ip } = await getPublicIp();
-
-    const authUrl = 'https://uae.dubizzle.com/en/user/auth/';
+    this.logger.log({
+      message: 'bypass config',
+      ip,
+      protocol,
+      domain,
+      userAgent: this.userAgent,
+      acceptLanguage: this.acceptLanguage,
+    });
     //1 GET INDEX.HTML
-    const { data: indexHtml, setCookie: indexHtmlSetCookies } = await this.fetch({ url: 'https://uae.dubizzle.com/en/user/auth/' });
+    const { data: indexHtml, setCookie: indexHtmlSetCookies } = await this.fetch({ url: rootUrl });
 
     /**
-  
     const resp = {
       html: `<!DOCTYPE html>\r\n<html>\r\n    <head>\r\n        <noscript>\r\n            <title>Pardon Our Interruption</title>\r\n        </noscript>\r\n\r\n        <meta name="viewport" content="width=1000">\r\n        <meta name="robots" content="noindex, nofollow">\r\n        <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">\r\n        <meta http-equiv="pragma" content="no-cache">\r\n        <meta http-equiv="expires" content="0">\r\n\r\n        <style>\r\n            .container { max-width: 800px; margin: auto; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; color: #7a838c; }\r\n            h1 { color: #2a2d30; font-weight: 500; }\r\n            li { margin: 0 0 10px; }\r\n            a { color: #428bca; }\r\n            a:hover, a:focus { color: #2a6496; }\r\n        </style>\r\n\r\n        <script>\r\n          var isSpa = new URLSearchParams(window.location.search).get('X-SPA') === '1' || window.isImpervaSpaSupport;\r\n        </script>\r\n\r\n        <!-- This head template should be placed before the following script tag that loads the challenge script -->\r\n        <script>\r\n          window.onProtectionInitialized = function(protection) {\r\n            if (protection && protection.cookieIsSet && !protection.cookieIsSet()) {\r\n              showBlockPage();\r\n              return;\r\n            }\r\n            if (!isSpa) {\r\n              window.location.reload(true);\r\n            }\r\n          };\r\n          window.reeseSkipExpirationCheck = true;\r\n        </script>\r\n\r\n        <script>\r\n          if (!isSpa) {\r\n            var scriptElement = document.createElement('script');\r\n            scriptElement.type = "text/javascript";\r\n            scriptElement.src = "/Spurre-Onell-vp-Enter-feed-ere-Yourthe-away-riso/1990034807062188477?s=scO3fxb4";\r\n
  scriptElement.async = true;\r\n            scriptElement.defer = true;\r\n            document.head.appendChild(scriptElement);\r\n          }\r\n        </script>\r\n        \r\n    </head>\r\n    <body>\r\n\r\n        \r\n\r\n        <div class="container">\r\n            <script>document.getElementsByClassName("container")[0].style.display = "none";</script>\r\n            \r\n            <h1>Pardon Our Interruption</h1>\r\n<p>As you were browsing something about your browser made us think you were a bot. There are a few reasons this might happen:</p>\r\n<ul>\r\n<noscript><li>You've disabled JavaScript in your web browser.</li></noscript>\r\n<li>You're a power user moving through this website with super-human speed.</li>\r\n<li>You've disabled cookies in your web browser.</li>\r\n<li>A third-party browser plugin, such as Ghostery or NoScript, is preventing JavaScript from running. Additional information is available in this <a title='Third party browser plugins that block javascript' href='http://ds.tl/help-third-party-plugins' target='_blank'>support article</a>.</li>\r\n</ul>\r\n<p>To regain access, please make sure that cookies and JavaScript are enabled before reloading the page.</p>\r\n\r\n\r\n        </div>\r\n\t\r\n        <div id="interstitial-inprogress" style="display: none">\r\n          <style>\n    #interstitial-inprogress {\n      width:100%;\n      height:100%;\n      position:absolute;\n      top: 0;\n      left: 0;\n      bottom: 0;\n      right: 0;\n      z-index:9999;\n      background:white url("/_Incapsula_Resource?NWFURVBO=images/error_pages/bg.png") no-repeat center;\n    }\n    #interstitial-inprogress-box{\n      font-size:32px;\n      box-shadow:0 4px 14px 0 #0000001A,0 8px 24px 0 #00000021;\n      font-family:Inter,Helvetica,Arial,sans-serif;\n      position:absolute;\n      left:50%;\n      top:50%;\n      transform:translate(-50%,-50%);\n      background-color:white;\n      text-align:center;\n      width:auto;\n      min-width:min(95%,640px);\n      max-width:max-content;\n      padding:16px;\n    }\n    #interstitial-inprogress-box h3{\n      font-size:48px;\n    }\n  </style>\n  <div id="interstitial-inprogress-box">\n    <h3>Please stand by</h3>\n    <p>We&apos;re getting everything ready for you. The page is loading, and you&apos;ll be on your way in just a few moments.</p>\n    <p>Thanks for your patience!</p>\n  </div>\n\r\n        </div>\r\n\r\n        <script>\r\n          function showBlockPage() {\r\n            document.title = "Pardon Our Interruption";\r\n            document.getElementsByClassName("container")[0].style.display = "block";\r\n          }\r\n\r\n          if (isSpa) {\r\n            showBlockPage();\r\n          } else {\r\n            window.interstitialTimeout = setTimeout(showBlockPage, 10000);\r\n          }\r\n        </script>\r\n    </body>\r\n</html>\r\n`,
@@ -149,7 +133,7 @@ export class DubizzleService implements OnModuleInit {
     const { html: indexHtml, setCookie: indexHtmlSetCookies } = resp;
      */
 
-    await this.updateCookieJar(indexHtmlSetCookies, authUrl);
+    await this.updateCookieJar(indexHtmlSetCookies, rootUrl);
     // UTMVC
     const resourcePath = parseUtmvcScriptPath(indexHtml);
     const submitPath = generateUtmvcScriptPath();
@@ -165,8 +149,6 @@ export class DubizzleService implements OnModuleInit {
     const sessionIds = getSessionIds(hyperCookies);
     this.logger.log({
       message: 'State before dynamic script fetch',
-      ip,
-      userAgent: this.userAgent,
       cookieString,
       sessionIds,
       resourcePath,
@@ -175,7 +157,7 @@ export class DubizzleService implements OnModuleInit {
     });
 
     // get reese84 sensor script
-    const dynamicReeseUrl = rootUrl + dynamicScript.scriptPath;
+    const dynamicReeseUrl = domain + dynamicScript.scriptPath;
     const { data: dynamicReeseScript, setCookie: dynamicReeseSetCookie } = await this.fetch({
       url: dynamicReeseUrl,
     });
@@ -186,52 +168,19 @@ export class DubizzleService implements OnModuleInit {
       newCookies: dynamicReeseSetCookie,
     });
     // Generate the sensor payload via hypersoultion sdk
-    const reeseInput = new Reese84Input(this.userAgent, ip, acceptLanguage, authUrl, dynamicReeseScript, dynamicReeseUrl);
-    const session = new Session(this.configService.getOrThrow<string>('HYPER_SDK_API_KEY'));
+    const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, authUrl, dynamicReeseScript, dynamicReeseUrl);
+    const session = new Session(this.config.getOrThrow<string>('HYPER_SDK_API_KEY'));
     const sensor = await generateReese84Sensor(session, reeseInput);
     this.logger.log({ message: 'sensor solved', sensor: sensor.slice(0, 100) });
 
     //send the soved captcha to dubizzle back
 
-    const reeeseSensorUrl = rootUrl + dynamicScript.sensorPath;
+    const reeeseSensorUrl = protocol + domain + dynamicScript.sensorPath;
+    const reeseTimeStamp = new Date();
     const reeseToken = await this.fetch({ url: reeeseSensorUrl, body: sensor });
     this.logger.log({ message: 'dubizzle response', reeseToken });
 
     return;
-    this.logger.log(`[PARSING]`, { html: indexHtml.slice(0, 100), cookies });
-
-    //2 GET/We-a-did-and-He-him-as-desir-call-their-Banquo-B
-    const reeseUrl = this.urlToParse + this.reeseResourcePath;
-    const { data: reeseScript } = await axios.get(reeseUrl, {
-      headers: {
-        'User-Agent': this.userAgent,
-        Cookie: cookieString,
-      },
-    });
-    this.logger.log(`[FETCHED REESE84 SCRIPT]`, { reeseScript: reeseScript.slice(0, 100) });
-
-    //3 GET /_Incapsula_Resource?SWJIYLWA=719....
-    // const utmvcResource = this.hyperSdk.parseUtmvcResourcePath(html)!;
-    // this.logger.log(`[PARSING] utmvc path: ${utmvcResource}`);
-    // const utmvcUrl = this.urlToParse + utmvcResource;
-    // const { data: utmvcScript } = await axios.get(utmvcUrl, {
-    //   headers: {
-    //     'User-Agent': this.userAgent,
-    //     Cookie: cookieString,
-    //   },
-    // });
-
-    // this.logger.log(`[FETCHED UTMVC SCRIPT]`, { utmvcScript: utmvcScript.slice(0, 100) });
-
-    // 4 https://uae.dubizzle.com/en/user/auth/       ===> PARDON OUR INTERAPTION....
-    // ====> HTML ===> PARSING...===>/Spurre-Onell-vp-Ente... script
-
-    //HYPER SDK MAGIC to get reese84 and utmvc
-
-    // 5 https://uae.dubizzle.com/Spurre-Onell-vp-Enter-feed-ere-Yourthe-away-riso/4088261707997073925?s=FtKYLY56 [FROM STEP 4]
-
-    // HYPER SDK MAGIC to get new reese84
-    // 6
   }
   async fetch(props: {
     url: string;
@@ -245,7 +194,7 @@ export class DubizzleService implements OnModuleInit {
     // 1. Construct Default Headers
     const headers = {
       Accept: 'application/json, text/plain, */*',
-      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Language': this.acceptLanguage,
       'User-Agent': this.userAgent,
       'x-access-token': access_token, // Custom auth header
       Cookie: cookieString,
@@ -258,7 +207,7 @@ export class DubizzleService implements OnModuleInit {
     try {
       // 3. Execute Request using the underlying Axios instance
       this.logger.log(`fetching ${requestMethod} url:${url} ....\ncookies:${cookieString}`);
-      const response = await this.httpService.axiosRef.request({
+      const response = await this.http.axiosRef.request({
         url,
         method: requestMethod,
         headers,
