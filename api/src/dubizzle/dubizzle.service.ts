@@ -1,4 +1,3 @@
-import { reese84Token } from './types/auth.types';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
@@ -128,7 +127,6 @@ export class DubizzleService implements OnModuleInit {
     const submitPath = generateUtmvcScriptPath();
     let utmvc: string;
     if (utmvcScriptPath) {
-      //TODO: implement utmvc logic
     }
     //DYNAMIC REESE84
     let dynamicScript: {
@@ -142,16 +140,17 @@ export class DubizzleService implements OnModuleInit {
     do {
       dynamicScript = parseDynamicReeseScript(currentHtml, rootUrl);
       // get reese84 sensor script
-      const dynamicReeseUrl = protocol + domain + dynamicScript.scriptPath;
+      const dynamicReeseUrl = protocol + '//' + domain + dynamicScript.scriptPath;
       const { data: script, contentType } = await this.fetch({
         url: dynamicReeseUrl,
+        referer: rootUrl,
       });
       lastContentType = contentType as string;
       dynamicReeseScript = script;
       this.logger.log({
         message: 'Dynamic script fetched',
-        // scriptPreview: dynamicReeseScript.slice(0, 100),
-        dynamicReeseScript,
+        scriptPreview: dynamicReeseScript.slice(0, 100),
+        // dynamicReeseScript,
         contentType,
       });
       if (contentType == 'text/html') {
@@ -160,7 +159,6 @@ export class DubizzleService implements OnModuleInit {
         break;
       }
     } while (lastContentType == 'text/html');
-    return;
 
     //cookies
     const hyperCookies = await this.getHyperCookies(rootUrl);
@@ -191,7 +189,7 @@ export class DubizzleService implements OnModuleInit {
     this.logger.log({ message: 'dubizzle response', reeseToken });
     await this.setReese84Cookie(reeseToken);
 
-    return;
+    return {};
   }
 
   async authorize() {
@@ -204,8 +202,9 @@ export class DubizzleService implements OnModuleInit {
     body?: any;
     access_token?: string;
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; // Optional: infer from body if missing
+    referer?: string;
   }) {
-    const { url, headers: customHeaders = {}, body, access_token, method } = props;
+    const { url, headers: customHeaders = {}, body, access_token, method, referer } = props;
     const cookieString = await this.getCookieString(url)!;
     // 1. Construct Default Headers
     const headers = {
@@ -214,6 +213,7 @@ export class DubizzleService implements OnModuleInit {
       'User-Agent': this.userAgent,
       'x-access-token': access_token, // Custom auth header
       Cookie: cookieString,
+      Referer: referer,
       ...customHeaders, // Allow specific overrides
     };
 
@@ -222,7 +222,7 @@ export class DubizzleService implements OnModuleInit {
 
     try {
       // 3. Execute Request using the underlying Axios instance
-      this.logger.log(`fetching ${requestMethod} url:${url} ....\ncookies:${cookieString}`);
+      console.log(`fetching ${requestMethod} url:${url} ....\ncookies:${cookieString}`);
       const response = await this.http.axiosRef.request({
         url,
         method: requestMethod,
@@ -289,33 +289,5 @@ export class DubizzleService implements OnModuleInit {
     } catch (error) {
       this.logger.error(`Failed to set reese84 cookie: ${error.message}`);
     }
-  }
-  async scrap() {
-    const domain = this.jobsDomain;
-    const session = await this.browserSessionRepo.findLatestSession(domain);
-
-    const { access_token } = session?.localStorage! as unknown as { access_token: string };
-    const cookies = session?.cookies as unknown as {
-      name: string;
-      value: string;
-      domain: string;
-    }[];
-    const cookieString = cookies
-      .map((cookie) => ([domain, '.dubizzle.com'].includes(cookie.domain) ? `${cookie.name}=${cookie.value}` : ''))
-      .filter((cookie) => !!cookie)
-      .join('; ');
-    this.logger.log({ cookieString });
-
-    const { data: vacancyResp } = await this.getVacancies({ cookieString, access_token });
-    return;
-    const { results: vacancies } = vacancyResp;
-    const vacancyIds: string[] = vacancies.map((v: { id: string }) => v.id);
-
-    this.logger.log(vacancyIds);
-
-    //APPLIES
-
-    const [applies] = await this.getApplies({ vacancyIds, cookieString, access_token });
-    this.logger.log(applies.results[0]);
   }
 }
