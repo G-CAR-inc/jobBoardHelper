@@ -4,3 +4,10 @@ export interface reese84Token {
   cookieDomain: string;
   rerun?: boolean;
 }
+export interface SessionDto {
+  ip: string;
+  domain: string;
+  userAgent: string;
+  acceptLanguage: string;
+  accept: string;
+}

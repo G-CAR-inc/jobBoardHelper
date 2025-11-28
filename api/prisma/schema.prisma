@@ -18,10 +18,15 @@ model BrowserSession {
 
 model Session {
   id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  
   publicIp  String   @map("public_ip")
   domain    String
-  createdAt DateTime @default(now()) @map("created_at")
+  userAgent String @map("user_agent")
+  acceptLanguage String @map("accept_language")
+  accept String
 
+  
   // 1:m Relations
   utmvcTokens   UtmvcToken[]
   reese84Tokens Reese84Token[]
