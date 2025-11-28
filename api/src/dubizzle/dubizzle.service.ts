@@ -1,6 +1,7 @@
+import { Session } from './../../node_modules/.prisma/client/index.d';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import axios, { AxiosError } from 'axios';
 // Import CookieJar from tough-cookie
 import { Cookie, CookieJar } from 'tough-cookie';
@@ -17,25 +18,27 @@ import {
   // We will construct the Cookie type manually or map to it
   Cookie as HyperCookie,
   Reese84Input,
-  Session,
+  Session as HyperSdkSession,
   generateReese84Sensor,
 } from 'hyper-sdk-js';
 import { getPublicIp } from '../utils/shared/srared.utils';
 import { reese84Token } from './types';
 import { BypassRepository } from './repositories/bypass.repository';
 @Injectable()
-export class DubizzleService implements OnModuleInit {
+export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DubizzleService.name);
 
   private urlToParse: string;
   private userAgent: string;
   private acceptLanguage: string;
+  private accept: string;
 
   private reeseResourcePath: string;
 
   //domains
   private jobsDomain: string;
   private uaeDomain: string;
+  private session: Session;
 
   private cookieJar = new CookieJar();
   constructor(
@@ -55,6 +58,7 @@ export class DubizzleService implements OnModuleInit {
     const uaeDomain = this.config.getOrThrow<string>('UAE_DOMAIN');
     const acceptLanguage = this.config.getOrThrow<string>('ACCEPT_LANGUAGE');
 
+    const accept = this.config.getOrThrow<string>('ACCEPT');
     // const {
     //   data: {
     //     versions: [agent],
@@ -63,6 +67,7 @@ export class DubizzleService implements OnModuleInit {
     // this.userAgent = agent.name;
     this.userAgent = userAgent;
     this.acceptLanguage = acceptLanguage;
+    this.accept = accept;
 
     this.urlToParse = urlToParse;
     this.reeseResourcePath = reeseResourcePath;
@@ -163,7 +168,7 @@ export class DubizzleService implements OnModuleInit {
     // Generate the sensor payload via hypersoultion sdk
     const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, rootUrl, dynamicReeseScript, dynamicScript.scriptPath);
     this.logger.log({ reeseInput });
-    const session = new Session(this.config.getOrThrow<string>('HYPER_SDK_API_KEY'));
+    const session = new HyperSdkSession(this.config.getOrThrow<string>('HYPER_SDK_API_KEY'));
     const sensor = await generateReese84Sensor(session, reeseInput);
     this.logger.log({ message: 'sensor solved', sensor: sensor.slice(0, 100) });
 
@@ -194,7 +199,7 @@ export class DubizzleService implements OnModuleInit {
     const cookieString = await this.getCookieString(url)!;
     // 1. Construct Default Headers
     const headers = {
-      Accept: 'application/json, text/plain, */*',
+      Accept: this.accept,
       'Accept-Language': this.acceptLanguage,
       'User-Agent': this.userAgent,
       'x-access-token': access_token, // Custom auth header
@@ -276,4 +281,5 @@ export class DubizzleService implements OnModuleInit {
       this.logger.error(`Failed to set reese84 cookie: ${error.message}`);
     }
   }
+  onModuleDestroy() {}
 }
