@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { Cookie } from './shared.types';
 
 export const transformCookiesToCookieString = (cookies: Cookie[]): string => {
@@ -11,4 +12,13 @@ export const parseSetCookies = (setCookies: string[]): Cookie[] => {
     const value = c.slice(i + 1);
     return { name, value } as Cookie;
   });
+};
+
+export const getPublicIp = async () => {
+  /**
+   * curl 'https://api.ipify.org?format=json'
+   * {"ip":"79.163.204.239"}
+   */
+  const { data } = await axios.get('https://api.ipify.org?format=json');
+  return data as { ip: string };
 };

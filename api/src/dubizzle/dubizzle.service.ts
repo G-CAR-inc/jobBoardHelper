@@ -2,7 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import axios, { AxiosError, AxiosResponse } from 'axios';
-import { parseSetCookies, transformCookiesToCookieString } from '../utils/shared/srared.utils';
+import { getPublicIp, parseSetCookies, transformCookiesToCookieString } from '../utils/shared/srared.utils';
 
 import { BrowserSessionRepository } from './repositories/browser-session.repository';
 import {
@@ -117,6 +117,8 @@ export class DubizzleService implements OnModuleInit {
     this.logger.log({ dynamicReeseScript: dynamicReeseScript.slice(0, 100), dynamicReeseSetCookie });
     // Reese84Input
     // generateReese84Sensor()
+    const { ip } = await getPublicIp();
+    
     return;
     this.logger.log(`[PARSING]`, { html: indexHtml.slice(0, 100), cookies });
 
