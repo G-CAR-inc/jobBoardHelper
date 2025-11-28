@@ -20,7 +20,7 @@ describe('DubizzleService', () => {
           timeout: 5000,
           maxRedirects: 5,
         }),
-        PrismaModule
+        PrismaModule,
       ],
       providers: [DubizzleService, BrowserSessionRepository],
     })
@@ -39,7 +39,7 @@ describe('DubizzleService', () => {
     expect(service).toBeDefined();
   });
   it('should return Incapsula resource', async () => {
-    const incapsulaJs = await service.scrap();
+    const incapsulaJs = await service.bypassIncapsula();
   });
 });
 //
