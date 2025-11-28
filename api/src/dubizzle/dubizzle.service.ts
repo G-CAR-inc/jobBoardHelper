@@ -2,10 +2,18 @@ import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import axios, { AxiosError, AxiosResponse } from 'axios';
-import { transformCookiesToCookieString } from '../utils/shared/srared.utils';
+import { parseSetCookies, transformCookiesToCookieString } from '../utils/shared/srared.utils';
 
 import { BrowserSessionRepository } from './repositories/browser-session.repository';
-import { generateUtmvcScriptPath, getSessionIds, parseUtmvcScriptPath, Cookie, parseDynamicReeseScript } from 'hyper-sdk-js';
+import {
+  generateUtmvcScriptPath,
+  getSessionIds,
+  parseUtmvcScriptPath,
+  Cookie,
+  parseDynamicReeseScript,
+  generateReese84Sensor,
+  Reese84Input,
+} from 'hyper-sdk-js';
 
 @Injectable()
 export class DubizzleService implements OnModuleInit {
@@ -73,7 +81,7 @@ export class DubizzleService implements OnModuleInit {
   async bypassIncapsula() {
     this.logger.log('[START] scrapping...');
     //1 GET INDEX.HTML
-    // const { data: html, setCookie } = await this.fetch({ url: 'https://uae.dubizzle.com/en/user/auth/' });
+    // const { data: indexHtml, setCookie:indexHtmlSetCookies } = await this.fetch({ url: 'https://uae.dubizzle.com/en/user/auth/' });
     const resp = {
       html: `<!DOCTYPE html>\r\n<html>\r\n    <head>\r\n        <noscript>\r\n            <title>Pardon Our Interruption</title>\r\n        </noscript>\r\n\r\n        <meta name="viewport" content="width=1000">\r\n        <meta name="robots" content="noindex, nofollow">\r\n        <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">\r\n        <meta http-equiv="pragma" content="no-cache">\r\n        <meta http-equiv="expires" content="0">\r\n\r\n        <style>\r\n            .container { max-width: 800px; margin: auto; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; color: #7a838c; }\r\n            h1 { color: #2a2d30; font-weight: 500; }\r\n            li { margin: 0 0 10px; }\r\n            a { color: #428bca; }\r\n            a:hover, a:focus { color: #2a6496; }\r\n        </style>\r\n\r\n        <script>\r\n          var isSpa = new URLSearchParams(window.location.search).get('X-SPA') === '1' || window.isImpervaSpaSupport;\r\n        </script>\r\n\r\n        <!-- This head template should be placed before the following script tag that loads the challenge script -->\r\n        <script>\r\n          window.onProtectionInitialized = function(protection) {\r\n            if (protection && protection.cookieIsSet && !protection.cookieIsSet()) {\r\n              showBlockPage();\r\n              return;\r\n            }\r\n            if (!isSpa) {\r\n              window.location.reload(true);\r\n            }\r\n          };\r\n          window.reeseSkipExpirationCheck = true;\r\n        </script>\r\n\r\n        <script>\r\n          if (!isSpa) {\r\n            var scriptElement = document.createElement('script');\r\n            scriptElement.type = "text/javascript";\r\n            scriptElement.src = "/Spurre-Onell-vp-Enter-feed-ere-Yourthe-away-riso/1990034807062188477?s=scO3fxb4";\r\n           
  scriptElement.async = true;\r\n            scriptElement.defer = true;\r\n            document.head.appendChild(scriptElement);\r\n          }\r\n        </script>\r\n        \r\n    </head>\r\n    <body>\r\n\r\n        \r\n\r\n        <div class="container">\r\n            <script>document.getElementsByClassName("container")[0].style.display = "none";</script>\r\n            \r\n            <h1>Pardon Our Interruption</h1>\r\n<p>As you were browsing something about your browser made us think you were a bot. There are a few reasons this might happen:</p>\r\n<ul>\r\n<noscript><li>You've disabled JavaScript in your web browser.</li></noscript>\r\n<li>You're a power user moving through this website with super-human speed.</li>\r\n<li>You've disabled cookies in your web browser.</li>\r\n<li>A third-party browser plugin, such as Ghostery or NoScript, is preventing JavaScript from running. Additional information is available in this <a title='Third party browser plugins that block javascript' href='http://ds.tl/help-third-party-plugins' target='_blank'>support article</a>.</li>\r\n</ul>\r\n<p>To regain access, please make sure that cookies and JavaScript are enabled before reloading the page.</p>\r\n\r\n\r\n        </div>\r\n\t\r\n        <div id="interstitial-inprogress" style="display: none">\r\n          <style>\n    #interstitial-inprogress {\n      width:100%;\n      height:100%;\n      position:absolute;\n      top: 0;\n      left: 0;\n      bottom: 0;\n      right: 0;\n      z-index:9999;\n      background:white url("/_Incapsula_Resource?NWFURVBO=images/error_pages/bg.png") no-repeat center;\n    }\n    #interstitial-inprogress-box{\n      font-size:32px;\n      box-shadow:0 4px 14px 0 #0000001A,0 8px 24px 0 #00000021;\n      font-family:Inter,Helvetica,Arial,sans-serif;\n      position:absolute;\n      left:50%;\n      top:50%;\n      transform:translate(-50%,-50%);\n      background-color:white;\n      text-align:center;\n      width:auto;\n      min-width:min(95%,640px);\n      max-width:max-content;\n      padding:16px;\n    }\n    #interstitial-inprogress-box h3{\n      font-size:48px;\n    }\n  </style>\n  <div id="interstitial-inprogress-box">\n    <h3>Please stand by</h3>\n    <p>We&apos;re getting everything ready for you. The page is loading, and you&apos;ll be on your way in just a few moments.</p>\n    <p>Thanks for your patience!</p>\n  </div>\n\r\n        </div>\r\n\r\n        <script>\r\n          function showBlockPage() {\r\n            document.title = "Pardon Our Interruption";\r\n            document.getElementsByClassName("container")[0].style.display = "block";\r\n          }\r\n\r\n          if (isSpa) {\r\n            showBlockPage();\r\n          } else {\r\n            window.interstitialTimeout = setTimeout(showBlockPage, 10000);\r\n          }\r\n        </script>\r\n    </body>\r\n</html>\r\n`,
@@ -82,22 +90,17 @@ export class DubizzleService implements OnModuleInit {
         'incap_ses_786_2413658=kXbMfGlOsF5ticSI/W7oCnVWKWkAAAAABwiGLarsjEOM/zHVfRUCqg==; path=/; Domain=.dubizzle.com; Secure; SameSite=None',
       ],
     };
-    const { html, setCookie } = resp;
+    const { html: indexHtml, setCookie: indexHtmlSetCookies } = resp;
     // UTMVC
-    const resourcePath = parseUtmvcScriptPath(html);
+    const resourcePath = parseUtmvcScriptPath(indexHtml);
     const submitPath = generateUtmvcScriptPath();
 
     //DYNAMIC REESE84
-    const dynamicScript = parseDynamicReeseScript(html, 'https://uae.dubizzle.com');
+    const rootUrl = 'https://uae.dubizzle.com';
+    const dynamicScript = parseDynamicReeseScript(indexHtml, rootUrl);
 
     //cookies
-    const cookies: Cookie[] = setCookie?.map((cookieWithPayload) => {
-      const [c] = cookieWithPayload.split('; ');
-      const i = c.indexOf('=');
-      const name = c.slice(0, i);
-      const value = c.slice(i + 1);
-      return { name, value } as Cookie;
-    });
+    const cookies: Cookie[] = parseSetCookies(indexHtmlSetCookies);
     const cookieString = transformCookiesToCookieString(cookies);
 
     //sesion ids
@@ -107,9 +110,15 @@ export class DubizzleService implements OnModuleInit {
 
     // Generate the Payload
 
-    // this.logger.log({ html, setCookie });
+    const { data: dynamicReeseScript, setCookie: dynamicReeseSetCookie } = await this.fetch({
+      url: rootUrl + dynamicScript.scriptPath,
+      cookieString,
+    });
+    this.logger.log({ dynamicReeseScript: dynamicReeseScript.slice(0, 100), dynamicReeseSetCookie });
+    // Reese84Input
+    // generateReese84Sensor()
     return;
-    this.logger.log(`[PARSING]`, { html: html.slice(0, 100), cookies });
+    this.logger.log(`[PARSING]`, { html: indexHtml.slice(0, 100), cookies });
 
     //2 GET/We-a-did-and-He-him-as-desir-call-their-Banquo-B
     const reeseUrl = this.urlToParse + this.reeseResourcePath;
