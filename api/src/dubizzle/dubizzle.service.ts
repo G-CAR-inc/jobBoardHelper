@@ -182,7 +182,7 @@ export class DubizzleService implements OnModuleInit {
       newCookies: dynamicReeseSetCookie,
     });
     this.logger.log(this.cookieJar);
-    const reeseInput = new Reese84Input(this.userAgent, ip, acceptLanguage, authUrl, dynamicReeseScript, dynamicScript.scriptPath);
+    const reeseInput = new Reese84Input(this.userAgent, ip, acceptLanguage, authUrl, dynamicReeseScript, dynamicReeseUrl);
     const session = new Session(this.configService.getOrThrow<string>('HYPER_SDK_API_KEY'));
     const sensor = await generateReese84Sensor(session, reeseInput);
     this.logger.log({ sensor });
