@@ -17,6 +17,8 @@ import {
   // We will construct the Cookie type manually or map to it
   Cookie as HyperCookie,
   Reese84Input,
+  Session,
+  generateReese84Sensor,
 } from 'hyper-sdk-js';
 import { getPublicIp } from '../utils/shared/srared.utils';
 @Injectable()
@@ -56,9 +58,9 @@ export class DubizzleService implements OnModuleInit {
     if (!urlToParse) {
       errors.push(`Config error. URL_TO_PARSE is can not be reached. ${new Date()}`);
     }
-    // if (!userAgent) {
-    //   errors.push(`Config error. USER_AGENT is can not be reached. ${new Date()}`);
-    // }
+    if (!userAgent) {
+      errors.push(`Config error. USER_AGENT is can not be reached. ${new Date()}`);
+    }
     if (!jobsDomain) {
       errors.push(`Config error. JOBS_DOMAIN is can not be reached. ${new Date()}`);
     }
@@ -81,6 +83,7 @@ export class DubizzleService implements OnModuleInit {
 
     this.urlToParse = urlToParse!;
     this.userAgent = userAgent!;
+    // this.userAgent = agent.name;
     this.reeseResourcePath = reeseResourcePath!;
     this.jobsDomain = jobsDomain!;
     this.uaeDomain = uaeDomain!;
@@ -126,6 +129,7 @@ export class DubizzleService implements OnModuleInit {
     this.logger.log('[START] scrapping...');
 
     const rootUrl = 'https://uae.dubizzle.com';
+    const acceptLanguage = 'en-US,en;q=0.9';
     const { ip } = await getPublicIp();
 
     const authUrl = 'https://uae.dubizzle.com/en/user/auth/';
@@ -158,6 +162,7 @@ export class DubizzleService implements OnModuleInit {
     this.logger.log({
       message: 'State before dynamic script fetch',
       ip,
+      userAgent: this.userAgent,
       cookieString,
       sessionIds,
       resourcePath,
@@ -177,8 +182,10 @@ export class DubizzleService implements OnModuleInit {
       newCookies: dynamicReeseSetCookie,
     });
     this.logger.log(this.cookieJar);
-    const reeseInput = new Reese84Input();
-    // generateReese84Sensor()
+    const reeseInput = new Reese84Input(this.userAgent, ip, acceptLanguage, authUrl, dynamicReeseScript, dynamicScript.scriptPath);
+    const session = new Session(this.configService.getOrThrow<string>('HYPER_SDK_API_KEY'));
+    const sensor = await generateReese84Sensor(session, reeseInput);
+    this.logger.log({ sensor });
 
     return;
     this.logger.log(`[PARSING]`, { html: indexHtml.slice(0, 100), cookies });
