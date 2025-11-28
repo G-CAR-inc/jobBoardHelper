@@ -43,13 +43,7 @@ export class PuppeteerService implements OnModuleInit {
         headless: false,
         executablePath,
         defaultViewport: null,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--window-size=1920,1080',
-          ...(userAgent ? [`--user-agent=${userAgent}`] : []),
-        ],
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--window-size=1920,1080', ...(userAgent ? [`--user-agent=${userAgent}`] : [])],
       });
 
       const page = await browser.newPage();

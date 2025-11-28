@@ -8,8 +8,6 @@ export class BypassService implements OnModuleInit {
    */
   constructor(private readonly cfg: ConfigService) {}
   onModuleInit() {}
-  
-  async bypassIncapsula() {
 
-  }
+  async bypassIncapsula() {}
 }
