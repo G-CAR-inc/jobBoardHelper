@@ -67,7 +67,9 @@ export class DubizzleService implements OnModuleInit {
     this.jobsDomain = jobsDomain!;
     this.uaeDomain = uaeDomain!;
   }
-
+  getUserAgents() {
+    return this.fetch({ url: 'https://versionhistory.googleapis.com/v1/chrome/platforms/win/channels/stable/versions/' });
+  }
   async bypassIncapsula() {
     this.logger.log('[START] scrapping...');
     //1 GET INDEX.HTML
@@ -102,6 +104,8 @@ export class DubizzleService implements OnModuleInit {
     const sessionIds = getSessionIds(cookies);
 
     this.logger.log({ cookies, cookieString, sessionIds, resourcePath, dynamicScript, submitPath });
+
+    // Generate the Payload
 
     // this.logger.log({ html, setCookie });
     return;
