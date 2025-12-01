@@ -23,9 +23,10 @@ import {
   UtmvcInput,
   generateUtmvcCookie,
 } from 'hyper-sdk-js';
-import { getPublicIp } from '../utils/shared/srared.utils';
+import { getPublicIp, sleep } from '../utils/shared/srared.utils';
 import { reese84Token } from './types';
 import { BypassRepository } from './repositories/bypass.repository';
+import { url } from 'inspector';
 @Injectable()
 export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DubizzleService.name);
@@ -212,7 +213,12 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     let { data: indexHtml } = await this.fetch({ url: rootUrl });
     this.logger.log({ indexHtml });
 
-    const ifDynamicReesePresent = parseDynamicReeseScript(indexHtml, rootUrl);
+    let ifDynamicReesePresent: boolean = false;
+    try {
+      ifDynamicReesePresent = !!parseDynamicReeseScript(indexHtml, rootUrl);
+    } catch (e) {
+      this.logger.log('didnt return an interaption page');
+    }
 
     const hyperSdkSession = new HyperSdkSession(this.config.getOrThrow<string>('HYPER_SDK_API_KEY'));
 
@@ -248,7 +254,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     });
     // //hypersdk
     const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, rootUrl, staticReeseScript, staticReeseUrl);
-    this.logger.log({ reeseInput });
+    // this.logger.log({ reeseInput });
     const reeseSensor = await generateReese84Sensor(hyperSdkSession, reeseInput);
     this.logger.log({ message: 'sensor solved', sensor: reeseSensor.slice(0, 100) });
     const staticReeseSubmitUrl = protocol + '//' + domain + staticReeseSubmitPath;
@@ -271,7 +277,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       this.logger.log({ message: `[UTMVC SCRIPT] generated [v]`, utmvcCookie: utmvcCookie.slice(0, 100), swhanedl });
       await this.setUtmvcCookie(utmvcCookie);
 
-      //submit token
+      //submit utmvc token
+      //could return CAPTCHA
       const {
         data: utmvcSubmitResponse,
         contentType: utmvcSubmitContentType,
@@ -282,16 +289,36 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     }
 
     const reeseTimeStamp = new Date();
-    const { data: reeseToken } = (await this.fetch({ url: staticReeseSubmitUrl, body: reeseSensor })) as { data: reese84Token };
-    await this.setReese84Cookie(reeseToken);
+    const { data: validReeseToken } = (await this.fetch({ url: staticReeseSubmitUrl, body: reeseSensor })) as { data: reese84Token };
+    await this.setReese84Cookie(validReeseToken);
 
-    return {};
+    //cookies
+    // this.logger.log(await this.cookieJar.getCookies(rootUrl));
+
+    return { validReeseToken, reeseTimeStamp };
   }
+  async sendAuthRequest() {
+    const authEndpointUrl = 'https://uae.dubizzle.com/auth/login/v6/';
 
-  async authorize() {
+    const email = this.config.getOrThrow<string>('USER_EMAIL');
+    const password = this.config.getOrThrow<string>('USER_PASSWORD');
+
+    const formData = new FormData();
+    formData.set('username', email);
+    formData.set('password', password);
+    this.logger.log({ message: 'auth request', authEndpointUrl, formData });
+
+    const { data: authResp, status, setCookie } = await this.fetch({ url: authEndpointUrl, body: formData });
+    this.logger.log(authResp, setCookie, status);
+  }
+  async requestMagicLink() {
     const rootUrl = 'https://uae.dubizzle.com/en/user/auth/';
 
     await this.bypassIncapsula({ rootUrl });
+    await sleep(10);
+    await this.sendAuthRequest();
+
+    return;
   }
   async fetch(props: {
     url: string;
@@ -326,12 +353,13 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
         headers,
         data: body,
       });
-      const { data, headers: respHeaders } = response;
+      const { data, headers: respHeaders, status } = response;
       const contentType = response.headers['content-type'];
 
       const setCookie = respHeaders['set-cookie'];
+
       await this.updateCookieJar(setCookie, url);
-      return { data, setCookie, contentType };
+      return { data, setCookie, contentType, headers: respHeaders, status };
     } catch (error) {
       if (axios.isAxiosError(error)) {
         this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error.message}`, error.response?.data);
@@ -341,20 +369,20 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       throw error;
     }
   }
-  getVacancies({ cookieString, access_token }: { cookieString: string; access_token: string }) {
-    const url = `${this.urlToParse}/svc/ats/api/v1/listing?status=live`;
-    return this.fetch({ url, access_token, method: 'GET' });
-  }
-  getApplies(props: { vacancyIds: string[]; cookieString: string; access_token: string }) {
-    const { vacancyIds, access_token } = props;
+  // getVacancies({ cookieString, access_token }: { cookieString: string; access_token: string }) {
+  //   const url = `${this.urlToParse}/svc/ats/api/v1/listing?status=live`;
+  //   return this.fetch({ url, access_token, method: 'GET' });
+  // }
+  // getApplies(props: { vacancyIds: string[]; cookieString: string; access_token: string }) {
+  //   const { vacancyIds, access_token } = props;
 
-    return Promise.all(
-      vacancyIds.map((vacancyId) => {
-        const url = `${this.urlToParse}/svc/ats/api/v4/application?job_listing=${vacancyId}&is_in_pipeline=1&sort_by=created_at`;
-        return this.fetch({ url, access_token, method: 'GET' });
-      }),
-    );
-  }
+  //   return Promise.all(
+  //     vacancyIds.map((vacancyId) => {
+  //       const url = `${this.urlToParse}/svc/ats/api/v4/application?job_listing=${vacancyId}&is_in_pipeline=1&sort_by=created_at`;
+  //       return this.fetch({ url, access_token, method: 'GET' });
+  //     }),
+  //   );
+  // }
   /**
    * Sets the 'reese84' cookie from the provided JSON token object.
    */

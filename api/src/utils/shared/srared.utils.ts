@@ -22,3 +22,4 @@ export const getPublicIp = async () => {
   const { data } = await axios.get('https://api.ipify.org?format=json');
   return data as { ip: string };
 };
+export const sleep = (s: number) => new Promise((res) => setTimeout(res, s * 1000));

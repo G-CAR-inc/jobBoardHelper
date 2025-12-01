@@ -23,7 +23,7 @@ describe('DubizzleService', () => {
         }),
         PrismaModule,
       ],
-      providers: [DubizzleService, BrowserSessionRepository,BypassRepository],
+      providers: [DubizzleService, BrowserSessionRepository, BypassRepository],
     })
       .setLogger(new Logger())
       .compile();
@@ -56,10 +56,10 @@ describe('DubizzleService', () => {
   });
   it('should return Incapsula resource', async () => {
     try {
-      await service.authorize();
+      await service.requestMagicLink();
     } catch (e) {
       Logger.error(e);
     }
-  });
+  }, 100000);
 });
 //
