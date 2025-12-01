@@ -20,6 +20,7 @@ import {
 import { getPublicIp, sleep } from '../utils/shared/srared.utils';
 import { reese84Token } from './types';
 import { BypassRepository } from './repositories/bypass.repository';
+import { lookup } from 'dns';
 @Injectable()
 export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DubizzleService.name);
@@ -61,6 +62,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     this.accept = accept;
 
     this.reeseResourcePath = reeseResourcePath;
+    this.logger.log('[SUCCESS] initialized');
   } /**
    * Helper: Stores an array of Set-Cookie strings into the jar.
    * tough-cookie validates the domain, so we must provide the 'currentUrl'.
@@ -274,7 +276,9 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     }
 
     const reeseTimeStamp = new Date();
-    const { data: validReeseToken } = (await this.fetch({ url: staticReeseSubmitUrl, body: reeseSensor })) as { data: reese84Token };
+    const { data: validReeseToken } = (await this.fetch({ url: staticReeseSubmitUrl, body: reeseSensor, referer: rootUrl })) as {
+      data: reese84Token;
+    };
     await this.setReese84Cookie(validReeseToken);
 
     //cookies
@@ -332,9 +336,26 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     this.logger.log({ emptyTokens, authResp });
 
-    await this.requestMagicLink({ dbz_ref_id });
+    // await this.requestMagicLink({ dbz_ref_id });
+
+    const getMagicLinkEndpointUrl = 'https://uae.dubizzle.com/auth/request_email_magic_link/';
+    await this.fetch({ url: getMagicLinkEndpointUrl, body: { dbz_ref_id }, access_token: this.access_token });
     this.logger.log(`[MAGIC LINK] requested`);
     return;
+  }
+  async processMagicLink(magicLink: string) {
+    this.logger.log(magicLink);
+    const url = new URL(magicLink);
+    const [token] = url.pathname
+      .split('/')
+      .filter((s) => s)
+      .reverse();
+
+    this.logger.log(token);
+    
+    const verificationReferer = `https://uae.dubizzle.com/?token=${token}`;
+    
+    // await this.bypassIncapsula({ rootUrl: magicLink });
   }
   async fetch(props: {
     url: string;
@@ -404,7 +425,6 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   async setReese84Cookie(tokenData: reese84Token) {
     const { token, renewInSec, cookieDomain } = tokenData;
 
-   
     const cookie = new Cookie({
       key: 'reese84',
       value: token,
@@ -414,7 +434,6 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       secure: true, // Usually required for these security tokens
       httpOnly: true, // Best practice
     });
-
 
     const normalizedDomain = cookieDomain.startsWith('.') ? cookieDomain.substring(1) : cookieDomain;
     const contextUrl = `https://${normalizedDomain}/`;
