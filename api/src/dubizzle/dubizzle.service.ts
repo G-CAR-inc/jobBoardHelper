@@ -3,19 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import axios, { AxiosError } from 'axios';
-// Import CookieJar from tough-cookie
 import { Cookie, CookieJar } from 'tough-cookie';
-// Import helper to promisify if needed, though modern tough-cookie uses promises for some methods,
-// usually setCookie/getCookieString are async in the latest versions or require callbacks.
-// We will assume the standard async usage.
-
 import { BrowserSessionRepository } from './repositories/browser-session.repository';
 import {
   generateUtmvcScriptPath,
   getSessionIds,
   parseUtmvcScriptPath,
   parseDynamicReeseScript,
-  // We will construct the Cookie type manually or map to it
   Cookie as HyperCookie,
   Reese84Input,
   Session as HyperSdkSession,
@@ -26,8 +20,6 @@ import {
 import { getPublicIp, sleep } from '../utils/shared/srared.utils';
 import { reese84Token } from './types';
 import { BypassRepository } from './repositories/bypass.repository';
-import { url } from 'inspector';
-import { empty } from '@prisma/client/runtime/client';
 @Injectable()
 export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DubizzleService.name);
@@ -359,17 +351,15 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       Accept: this.accept,
       'Accept-Language': this.acceptLanguage,
       'User-Agent': this.userAgent,
-      'x-access-token': access_token, // Custom auth header
+      'x-access-token': access_token || this.access_token, // Custom auth header
       Cookie: cookieString,
       Referer: referer,
       ...customHeaders, // Allow specific overrides
     };
 
-    // 2. Determine HTTP Method (Default to POST if body exists, else GET)
     const requestMethod = method || (body ? 'POST' : 'GET');
 
     try {
-      // 3. Execute Request using the underlying Axios instance
       console.log(`fetching ${requestMethod} url:${url} ....\ncookies:${cookieString}`);
       const response = await this.http.axiosRef.request({
         url,
@@ -414,8 +404,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   async setReese84Cookie(tokenData: reese84Token) {
     const { token, renewInSec, cookieDomain } = tokenData;
 
-    // 1. Construct the Cookie object
-    // using tough-cookie's Cookie class ensures proper formatting
+   
     const cookie = new Cookie({
       key: 'reese84',
       value: token,
@@ -426,9 +415,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       httpOnly: true, // Best practice
     });
 
-    // 2. Determine a valid URL for the context
-    // tough-cookie requires a URL to validate the domain.
-    // We strip any leading '.' from the domain (e.g. .dubizzle.com -> dubizzle.com)
+
     const normalizedDomain = cookieDomain.startsWith('.') ? cookieDomain.substring(1) : cookieDomain;
     const contextUrl = `https://${normalizedDomain}/`;
 
