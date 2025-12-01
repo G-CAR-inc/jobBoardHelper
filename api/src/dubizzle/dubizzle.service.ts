@@ -32,19 +32,17 @@ import { empty } from '@prisma/client/runtime/client';
 export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DubizzleService.name);
 
-  private urlToParse: string;
   private userAgent: string;
   private acceptLanguage: string;
   private accept: string;
 
   private reeseResourcePath: string;
 
-  //domains
-  private jobsDomain: string;
-  private uaeDomain: string;
-  private session: Session;
-
   private cookieJar = new CookieJar();
+
+  private access_token: string;
+  private refresh_token: string;
+
   constructor(
     @Inject() private readonly http: HttpService,
     @Inject() private readonly browserSessionRepo: BrowserSessionRepository,
@@ -55,11 +53,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     const userAgent = this.config.getOrThrow<string>('USER_AGENT');
 
-    const urlToParse = this.config.getOrThrow<string>('URL_TO_PARSE');
-
     const reeseResourcePath = this.config.getOrThrow<string>('REESE_RESOURCE_PATH');
-    const jobsDomain = this.config.getOrThrow<string>('JOBS_DOMAIN');
-    const uaeDomain = this.config.getOrThrow<string>('UAE_DOMAIN');
+
     const acceptLanguage = this.config.getOrThrow<string>('ACCEPT_LANGUAGE');
 
     const accept = this.config.getOrThrow<string>('ACCEPT');
@@ -73,10 +68,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     this.acceptLanguage = acceptLanguage;
     this.accept = accept;
 
-    this.urlToParse = urlToParse;
     this.reeseResourcePath = reeseResourcePath;
-    this.jobsDomain = jobsDomain;
-    this.uaeDomain = uaeDomain;
   } /**
    * Helper: Stores an array of Set-Cookie strings into the jar.
    * tough-cookie validates the domain, so we must provide the 'currentUrl'.
@@ -322,7 +314,12 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     }
     return authResp;
   }
-  // async requestMagicLink()
+  async requestMagicLink(props: { dbz_ref_id: string }) {
+    const { dbz_ref_id } = props;
+    const getMagicLinkEndpointUrl = 'https://uae.dubizzle.com/auth/request_email_magic_link/';
+    await this.fetch({ url: getMagicLinkEndpointUrl, body: { dbz_ref_id }, access_token: this.access_token });
+  }
+
   async authFlow() {
     const rootUrl = 'https://uae.dubizzle.com/en/user/auth/';
 
@@ -333,12 +330,18 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const password = this.config.getOrThrow<string>('USER_PASSWORD');
 
     const authResp = await this.sendAuthRequest({ email, password });
-    // const { dbz_ref_id } = authResp;
 
-    const emptyTokens = await this.sendAuthRequest(null);
-    // const { access_token, refresh_token } = emptyTokens;
+    const { dbz_ref_id } = authResp as { dbz_ref_id: string };
+
+    const emptyTokens = (await this.sendAuthRequest(null)) as { access_token: string; refresh_token: string };
+
+    this.access_token = emptyTokens.access_token;
+    this.refresh_token = emptyTokens.refresh_token;
 
     this.logger.log({ emptyTokens, authResp });
+
+    await this.requestMagicLink({ dbz_ref_id });
+    this.logger.log(`[MAGIC LINK] requested`);
     return;
   }
   async fetch(props: {
