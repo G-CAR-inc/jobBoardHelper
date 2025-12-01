@@ -5,6 +5,7 @@ import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { BrowserSessionRepository } from './repositories/browser-session.repository';
 import { PrismaModule } from '../prisma/prisma.module';
+import { BypassRepository } from './repositories/bypass.repository';
 describe('DubizzleService', () => {
   let service: DubizzleService;
 
@@ -22,7 +23,7 @@ describe('DubizzleService', () => {
         }),
         PrismaModule,
       ],
-      providers: [DubizzleService, BrowserSessionRepository],
+      providers: [DubizzleService, BrowserSessionRepository,BypassRepository],
     })
       .setLogger(new Logger())
       .compile();

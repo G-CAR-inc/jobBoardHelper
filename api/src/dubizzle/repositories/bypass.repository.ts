@@ -13,7 +13,7 @@ export class BypassRepository {
    * Creates a new browsing session.
    * Returns the created session object (including ID).
    */
-  async registerSession(dto: CreateSessionDto) {
+  registerSession(dto: CreateSessionDto) {
     return this.prisma.session.create({
       data: {
         publicIp: dto.publicIp,
@@ -29,7 +29,7 @@ export class BypassRepository {
   /**
    * Retrieves a session by ID including all relations.
    */
-  async getSessionById(sessionId: string) {
+  getSessionById(sessionId: string) {
     return this.prisma.session.findUnique({
       where: { id: sessionId },
       include: {
@@ -47,7 +47,7 @@ export class BypassRepository {
   /**
    * Saves a Reese84 token linked to a specific session.
    */
-  async saveReese84(sessionId: string, dto: CreateReese84Dto) {
+  saveReese84(sessionId: string, dto: CreateReese84Dto) {
     return this.prisma.reese84Token.create({
       data: {
         token: dto.token,
@@ -62,7 +62,7 @@ export class BypassRepository {
   /**
    * Finds the latest Reese84 token for a specific domain.
    */
-  async findLatestReese84(domain: string) {
+  findLatestReese84(domain: string) {
     return this.prisma.reese84Token.findFirst({
       where: { domain },
       orderBy: { createdAt: 'desc' },
@@ -76,7 +76,7 @@ export class BypassRepository {
   /**
    * Saves a UTMVC token linked to a specific session.
    */
-  async saveUtmvc(sessionId: string, dto: CreateUtmvcDto) {
+  saveUtmvc(sessionId: string, dto: CreateUtmvcDto) {
     return this.prisma.utmvcToken.create({
       data: {
         token: dto.token,
@@ -89,7 +89,7 @@ export class BypassRepository {
   /**
    * Finds the latest UTMVC token for a specific session.
    */
-  async findLatestUtmvc(sessionId: string) {
+  findLatestUtmvc(sessionId: string) {
     return this.prisma.utmvcToken.findFirst({
       where: { sessionId },
       orderBy: { createdAt: 'desc' },
@@ -103,7 +103,7 @@ export class BypassRepository {
   /**
    * Saves a single cookie.
    */
-  async saveCookie(sessionId: string, dto: CreateCookieDto) {
+  saveCookie(sessionId: string, dto: CreateCookieDto) {
     return this.prisma.cookie.create({
       data: {
         key: dto.key,
@@ -122,7 +122,7 @@ export class BypassRepository {
    * Bulk saves multiple cookies for a session.
    * Useful when parsing a `set-cookie` array header.
    */
-  async saveCookiesBulk(sessionId: string, dtos: CreateCookieDto[]) {
+  saveCookiesBulk(sessionId: string, dtos: CreateCookieDto[]) {
     // Prisma createMany is more efficient for arrays
     return this.prisma.cookie.createMany({
       data: dtos.map((dto) => ({
@@ -141,7 +141,7 @@ export class BypassRepository {
   /**
    * Get all cookies for a specific session formatted as an array.
    */
-  async getCookiesForSession(sessionId: string) {
+  getCookiesForSession(sessionId: string) {
     return this.prisma.cookie.findMany({
       where: { sessionId },
     });

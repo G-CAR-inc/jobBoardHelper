@@ -20,6 +20,8 @@ import {
   Reese84Input,
   Session as HyperSdkSession,
   generateReese84Sensor,
+  UtmvcInput,
+  generateUtmvcCookie,
 } from 'hyper-sdk-js';
 import { getPublicIp } from '../utils/shared/srared.utils';
 import { reese84Token } from './types';
@@ -111,34 +113,16 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   getUserAgents() {
     return this.fetch({ url: 'https://versionhistory.googleapis.com/v1/chrome/platforms/win/channels/stable/versions/' });
   }
-  async bypassIncapsula(rootUrl: string) {
-    this.logger.log('[START] scrapping...');
+  async handleDynamicReese(props: { rootUrl: string; indexHtml: string; ip: string; hyperSdkSession: HyperSdkSession }) {
+    const { rootUrl, indexHtml, ip, hyperSdkSession } = props;
     const rootUrlObj = new URL(rootUrl);
 
     const domain = rootUrlObj.host;
     const protocol = rootUrlObj.protocol;
-    const { ip } = await getPublicIp();
-    this.logger.log({
-      message: 'bypass config',
-      ip,
-      protocol,
-      domain,
-      userAgent: this.userAgent,
-      acceptLanguage: this.acceptLanguage,
-    });
-    //1 GET INDEX.HTML
-    const { data: indexHtml, setCookie: indexHtmlSetCookies } = await this.fetch({ url: rootUrl });
-    this.logger.log({ indexHtml });
-    // UTMVC
-    const utmvcScriptPath = parseUtmvcScriptPath(indexHtml);
-    const submitPath = generateUtmvcScriptPath();
-    let utmvc: string;
-    if (utmvcScriptPath) {
-    }
     //DYNAMIC REESE84
-    const dynamicScript = parseDynamicReeseScript(indexHtml, rootUrl);
+    const dynamicReeseScriptPaths = parseDynamicReeseScript(indexHtml, rootUrl);
     // get reese84 sensor script
-    const dynamicReeseUrl = protocol + '//' + domain + dynamicScript.scriptPath;
+    const dynamicReeseUrl = protocol + '//' + domain + dynamicReeseScriptPaths.scriptPath;
     const { data: dynamicReeseScript, contentType } = await this.fetch({
       url: dynamicReeseUrl,
       referer: rootUrl,
@@ -151,41 +135,122 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       contentType,
     });
 
+    // this.logger.log({
+    //   message: 'State before dynamic script fetch',
+
+    //   sessionIds: hyperSdkSessionIds,
+    //   resourcePath: utmvcScriptPath,
+    //   dynamicScript: dynamicReeseScriptPaths,
+    //   submitPath,
+    // });
+
+    // Generate the sensor payload via hypersoultion sdk
+    // const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, rootUrl, dynamicReeseScript, dynamicReeseScriptPaths.scriptPath);
+
+    const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, rootUrl, dynamicReeseScript, dynamicReeseUrl);
+    this.logger.log({ reeseInput });
+    const reeseSensor = await generateReese84Sensor(hyperSdkSession, reeseInput);
+    this.logger.log({ message: 'sensor solved', sensor: reeseSensor.slice(0, 100) });
+
+    //send the soved captcha to dubizzle back
+
+    const reeeseSensorUrl = protocol + '//' + domain + dynamicReeseScriptPaths.sensorPath;
+    const reeseTimeStamp = new Date();
+    const { data: reeseToken } = (await this.fetch({ url: reeeseSensorUrl, body: reeseSensor })) as { data: reese84Token };
+    // this.logger.log({ message: 'dubizzle response', reeseToken });
+    await this.setReese84Cookie(reeseToken);
+    return { reeseTimeStamp, reeseToken };
+  }
+  hasStaticReese(htmlString: string) {
+    // The specific path we are looking for
+    const staticReesePath = '/We-a-did-and-He-him-as-desir-call-their-Banquo-B';
+
+    // Escape the path for use in Regex (though this specific string is safe, it's good practice)
+    const escapedPath = staticReesePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    /**
+     * Regex Explanation:
+     * <script          : Matches the start of the script tag
+     * (?=.*src=...)    : Positive Lookahead 1 - Ensures 'src' matches our target path (anywhere in the tag)
+     * Matches both ' and " quotes.
+     * (?=.*async)      : Positive Lookahead 2 - Ensures 'async' attribute exists (anywhere in the tag)
+     * [^>]* : Matches the content of the tag until the closing bracket
+     * >                : Matches the closing bracket
+     * /i               : Case insensitive flag
+     */
+    const regex = new RegExp(`<script(?=[^>]*src=['"]${escapedPath}['"])(?=[^>]*\\basync\\b)[^>]*>`, 'i');
+
+    return { has: regex.test(htmlString), staticReesePath };
+  }
+  async bypassIncapsula(props: { rootUrl: string }) {
+    this.logger.log('[START] scrapping...');
+    const { rootUrl } = props;
+    //find latest session
+
+    const rootUrlObj = new URL(rootUrl);
+
+    const domain = rootUrlObj.host;
+    const protocol = rootUrlObj.protocol;
+    const { ip } = await getPublicIp();
+    const session = await this.bypassRepo.registerSession({
+      userAgent: this.userAgent,
+      accept: this.accept,
+      acceptLanguage: this.acceptLanguage,
+      publicIp: ip,
+      domain,
+    });
+    this.logger.log({
+      message: 'bypass config',
+      session,
+    });
+
+    //1 GET INDEX.HTML
+    let { data: indexHtml } = await this.fetch({ url: rootUrl });
+    this.logger.log({ indexHtml });
+
+    const ifDynamicReesePresent = parseDynamicReeseScript(indexHtml, rootUrl);
+
+    const hyperSdkSession = new HyperSdkSession(this.config.getOrThrow<string>('HYPER_SDK_API_KEY'));
+
+    if (ifDynamicReesePresent) {
+      await this.handleDynamicReese({ rootUrl, ip, hyperSdkSession, indexHtml });
+
+      const { data } = await this.fetch({ url: rootUrl });
+
+      indexHtml = data;
+    }
+
     //cookies
     const hyperCookies = await this.getHyperCookies(rootUrl);
 
     //sesion ids
-    const sessionIds = getSessionIds(hyperCookies);
-    this.logger.log({
-      message: 'State before dynamic script fetch',
+    const hyperSdkSessionIds = getSessionIds(hyperCookies);
 
-      sessionIds,
-      resourcePath: utmvcScriptPath,
-      dynamicScript,
-      submitPath,
-    });
+    const { has, staticReesePath } = this.hasStaticReese(indexHtml);
 
-    // Generate the sensor payload via hypersoultion sdk
-    const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, rootUrl, dynamicReeseScript, dynamicScript.scriptPath);
-    this.logger.log({ reeseInput });
-    const session = new HyperSdkSession(this.config.getOrThrow<string>('HYPER_SDK_API_KEY'));
-    const sensor = await generateReese84Sensor(session, reeseInput);
-    this.logger.log({ message: 'sensor solved', sensor: sensor.slice(0, 100) });
+    // UTMVC
+    const utmvcScriptPath = parseUtmvcScriptPath(indexHtml);
+    const submitPath = generateUtmvcScriptPath();
+    // let utmvc: string;
 
-    //send the soved captcha to dubizzle back
+    const utmvcScriptUrl = protocol + '//' + domain + utmvcScriptPath;
+    const { data: utmvcScript, contentType: utmvcScriptContentType } = await this.fetch({ url: utmvcScriptUrl, referer: rootUrl });
 
-    const reeeseSensorUrl = protocol + domain + dynamicScript.sensorPath;
-    const reeseTimeStamp = new Date();
-    const { data: reeseToken } = (await this.fetch({ url: reeeseSensorUrl, body: sensor })) as { data: reese84Token };
-    this.logger.log({ message: 'dubizzle response', reeseToken });
-    await this.setReese84Cookie(reeseToken);
+    this.logger.log({ message: `[UTMVC SCRIPT]`, utmvcScriptUrl, utmvcScript: utmvcScript.slice(0, 100), utmvcScriptContentType });
+
+    // //hypersdk
+    // const utmvcInput = new UtmvcInput(this.userAgent, utmvcScript, hyperSdkSessionIds);
+    // const { payload: utmvcCookie, swhanedl } = await generateUtmvcCookie(hyperSdkSession, utmvcInput);
+
+    // this.logger.log({ utmvcCookie: utmvcCookie.slice(0, 100), swhanedl });
 
     return {};
   }
 
   async authorize() {
     const rootUrl = 'https://uae.dubizzle.com/en/user/auth/';
-    const incapsulaJs = await this.bypassIncapsula(rootUrl);
+
+    await this.bypassIncapsula({ rootUrl });
   }
   async fetch(props: {
     url: string;
@@ -281,5 +346,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`Failed to set reese84 cookie: ${error.message}`);
     }
   }
-  onModuleDestroy() {}
+  onModuleDestroy() {
+    this.logger.warn(`[DESTROYING]....`);
+  }
 }
