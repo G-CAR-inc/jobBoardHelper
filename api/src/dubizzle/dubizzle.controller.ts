@@ -1,8 +1,7 @@
 // src/dubizzle/dubizzle.controller.ts
-import { Body, Controller, Get, Logger, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { DubizzleService } from './dubizzle.service';
 import { ApiKeyGuard } from './guards/api-key/api-key.guard';
-
 @Controller('dubizzle')
 @UseGuards(ApiKeyGuard) // Protects all endpoints in this controller
 export class DubizzleController {
@@ -13,7 +12,7 @@ export class DubizzleController {
   @Get('magic-link')
   async triggerAuthFlow() {
     this.logger.log('Triggering auth flow via GET /magic-link');
-    await this.dubizzleService.authFlow();
+    await this.dubizzleService.requestMagicLink();
     return { message: 'Auth flow triggered' };
   }
 
@@ -23,5 +22,9 @@ export class DubizzleController {
     this.logger.log(`Received Magic Link: ${magicLink}`);
     await this.dubizzleService.processMagicLink(magicLink);
     return { message: 'Magic link received and logged' };
+  }
+  @Get('cookies')
+  async getCookieState(@Query('domain') domain: string) {
+    return await this.dubizzleService.cookieJar.getCookies(`https://${domain}`);
   }
 }

@@ -56,7 +56,7 @@ describe('DubizzleService', () => {
   });
   it('should return Incapsula resource', async () => {
     try {
-      await service.authFlow();
+      await service.requestMagicLink();
     } catch (e) {
       Logger.error(e);
     }

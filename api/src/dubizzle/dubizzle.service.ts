@@ -21,6 +21,7 @@ import { getPublicIp, sleep } from '../utils/shared/srared.utils';
 import { reese84Token } from './types';
 import { BypassRepository } from './repositories/bypass.repository';
 import { lookup } from 'dns';
+import { log } from 'console';
 @Injectable()
 export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DubizzleService.name);
@@ -31,7 +32,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
   private reeseResourcePath: string;
 
-  private cookieJar = new CookieJar();
+  public cookieJar = new CookieJar();
 
   private access_token: string;
   private refresh_token: string;
@@ -198,7 +199,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     //1 GET INDEX.HTML
     let { data: indexHtml } = await this.fetch({ url: rootUrl });
-    this.logger.log({ indexHtml });
+    this.logger.log({ indexHtml: indexHtml.slice(0, 500) });
 
     let ifDynamicReesePresent: boolean = false;
     try {
@@ -261,7 +262,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       // //hypersdk
       const utmvcInput = new UtmvcInput(this.userAgent, utmvcScript, hyperSdkSessionIds);
       const { payload: utmvcCookie, swhanedl } = await generateUtmvcCookie(hyperSdkSession, utmvcInput);
-      this.logger.log({ message: `[UTMVC SCRIPT] generated [v]`, utmvcCookie: utmvcCookie.slice(0, 100), swhanedl });
+      this.logger.log({ message: `[UTMVC SCRIPT] generated [v]`, utmvcCookie: utmvcCookie, swhanedl });
       await this.setUtmvcCookie(utmvcCookie);
 
       //submit utmvc token
@@ -276,6 +277,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     }
 
     const reeseTimeStamp = new Date();
+    this.logger.log('\n\n\n\n REESE COOKIES[V]', await this.cookieJar.getCookies(rootUrl), '\n\n\n\n');
     const { data: validReeseToken } = (await this.fetch({ url: staticReeseSubmitUrl, body: reeseSensor, referer: rootUrl })) as {
       data: reese84Token;
     };
@@ -310,13 +312,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     }
     return authResp;
   }
-  async requestMagicLink(props: { dbz_ref_id: string }) {
-    const { dbz_ref_id } = props;
-    const getMagicLinkEndpointUrl = 'https://uae.dubizzle.com/auth/request_email_magic_link/';
-    await this.fetch({ url: getMagicLinkEndpointUrl, body: { dbz_ref_id }, access_token: this.access_token });
-  }
 
-  async authFlow() {
+  async requestMagicLink() {
     const rootUrl = 'https://uae.dubizzle.com/en/user/auth/';
 
     await this.bypassIncapsula({ rootUrl });
@@ -352,10 +349,17 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       .reverse();
 
     this.logger.log(token);
-    
+
     const verificationReferer = `https://uae.dubizzle.com/?token=${token}`;
-    
-    // await this.bypassIncapsula({ rootUrl: magicLink });
+
+    await this.bypassIncapsula({ rootUrl: magicLink });
+
+    const { data: resp } = await this.fetch({
+      url: 'https://uae.dubizzle.com/auth/verify_email_magic_link/',
+      body: { token },
+      referer: verificationReferer,
+    });
+    this.logger.log(resp);
   }
   async fetch(props: {
     url: string;
@@ -453,7 +457,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const cookie = new Cookie({
       key: '___utmvc',
       value: utmvcCookie,
-      domain: cookieDomain,
+      domain: normalizedDomain,
       path: '/',
       secure: true, // Usually required for these security tokens
       httpOnly: true, // Best practice
