@@ -356,7 +356,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     const { data: resp } = await this.fetch({
       url: 'https://uae.dubizzle.com/auth/verify_email_magic_link/',
-      body: { token },
+      body: { magic_link_url_id: token },
       referer: verificationReferer,
     });
     this.logger.log(resp);
