@@ -27,6 +27,7 @@ import { getPublicIp, sleep } from '../utils/shared/srared.utils';
 import { reese84Token } from './types';
 import { BypassRepository } from './repositories/bypass.repository';
 import { url } from 'inspector';
+import { empty } from '@prisma/client/runtime/client';
 @Injectable()
 export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DubizzleService.name);
@@ -295,29 +296,49 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     //cookies
     // this.logger.log(await this.cookieJar.getCookies(rootUrl));
 
-    return { validReeseToken, reeseTimeStamp };
+    return { validReeseToken, reeseTimeStamp, ifDynamicReesePresent };
   }
-  async sendAuthRequest() {
+  async sendAuthRequest(props: { email: string; password: string } | null) {
+    let resp: any;
     const authEndpointUrl = 'https://uae.dubizzle.com/auth/login/v6/';
+    if (props) {
+      const { email, password } = props;
 
-    const email = this.config.getOrThrow<string>('USER_EMAIL');
-    const password = this.config.getOrThrow<string>('USER_PASSWORD');
+      const formData = new FormData();
 
-    const formData = new FormData();
-    formData.set('username', email);
-    formData.set('password', password);
-    this.logger.log({ message: 'auth request', authEndpointUrl, formData });
+      formData.set('username', email);
+      formData.set('password', password);
 
-    const { data: authResp, status, setCookie } = await this.fetch({ url: authEndpointUrl, body: formData });
-    this.logger.log(authResp, setCookie, status);
+      // this.logger.log({ message: 'auth request', authEndpointUrl, formData });
+
+      resp = await this.fetch({ url: authEndpointUrl, body: formData });
+    } else {
+      resp = await this.fetch({ url: authEndpointUrl, method: 'POST', body: null });
+    }
+    const { status, data: authResp } = resp;
+
+    if (status != 412 && status >= 300) {
+      throw new Error(`unknown magic link error ${JSON.stringify(authResp)}`);
+    }
+    return authResp;
   }
-  async requestMagicLink() {
+  // async requestMagicLink()
+  async authFlow() {
     const rootUrl = 'https://uae.dubizzle.com/en/user/auth/';
 
     await this.bypassIncapsula({ rootUrl });
     await sleep(10);
-    await this.sendAuthRequest();
 
+    const email = this.config.getOrThrow<string>('USER_EMAIL');
+    const password = this.config.getOrThrow<string>('USER_PASSWORD');
+
+    const authResp = await this.sendAuthRequest({ email, password });
+    // const { dbz_ref_id } = authResp;
+
+    const emptyTokens = await this.sendAuthRequest(null);
+    // const { access_token, refresh_token } = emptyTokens;
+
+    this.logger.log({ emptyTokens, authResp });
     return;
   }
   async fetch(props: {
@@ -362,11 +383,12 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       return { data, setCookie, contentType, headers: respHeaders, status };
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error.message}`, error.response?.data);
+        this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error.message}`);
       } else {
         this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error}`);
       }
-      throw error;
+      // throw error;
+      return error.response;
     }
   }
   // getVacancies({ cookieString, access_token }: { cookieString: string; access_token: string }) {
