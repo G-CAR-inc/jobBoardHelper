@@ -148,7 +148,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     // const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, rootUrl, dynamicReeseScript, dynamicReeseScriptPaths.scriptPath);
 
     const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, rootUrl, dynamicReeseScript, dynamicReeseUrl);
-    this.logger.log({ reeseInput });
+    // this.logger.log({ reeseInput });
     const reeseSensor = await generateReese84Sensor(hyperSdkSession, reeseInput);
     this.logger.log({ message: 'sensor solved', sensor: reeseSensor.slice(0, 100) });
 
@@ -161,10 +161,14 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     await this.setReese84Cookie(reeseToken);
     return { reeseTimeStamp, reeseToken };
   }
-  hasStaticReese(htmlString: string) {
+  getStaticReeseInfo(htmlString: string, htmlUrl: string) {
     // The specific path we are looking for
     const staticReesePath = '/We-a-did-and-He-him-as-desir-call-their-Banquo-B';
+    const url = new URL(htmlUrl);
 
+    const domain = url.host;
+
+    const staticReeseSubmitPath = `${staticReesePath}?d=${domain}`;
     // Escape the path for use in Regex (though this specific string is safe, it's good practice)
     const escapedPath = staticReesePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -179,8 +183,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
      * /i               : Case insensitive flag
      */
     const regex = new RegExp(`<script(?=[^>]*src=['"]${escapedPath}['"])(?=[^>]*\\basync\\b)[^>]*>`, 'i');
-
-    return { has: regex.test(htmlString), staticReesePath };
+    const hasStaticReese = regex.test(htmlString);
+    return { hasStaticReese, staticReesePath, staticReeseSubmitPath };
   }
   async bypassIncapsula(props: { rootUrl: string }) {
     this.logger.log('[START] scrapping...');
@@ -226,23 +230,60 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     //sesion ids
     const hyperSdkSessionIds = getSessionIds(hyperCookies);
 
-    const { has, staticReesePath } = this.hasStaticReese(indexHtml);
+    //STATIC REESE84
+    const { hasStaticReese, staticReesePath, staticReeseSubmitPath } = this.getStaticReeseInfo(indexHtml, rootUrl);
+    const staticReeseUrl = protocol + '//' + domain + staticReesePath;
+    const { data: staticReeseScript, contentType: staticReeseContentType } = await this.fetch({
+      url: staticReeseUrl,
+      referer: rootUrl,
+    });
+
+    this.logger.log({
+      message: '[STATIC REESE] fetched',
+      scriptPreview: staticReeseScript.slice(0, 100),
+      // dynamicReeseScript,
+      contentType: staticReeseContentType,
+      hasStaticReese,
+      staticReeseSubmitPath,
+    });
+    // //hypersdk
+    const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, rootUrl, staticReeseScript, staticReeseUrl);
+    this.logger.log({ reeseInput });
+    const reeseSensor = await generateReese84Sensor(hyperSdkSession, reeseInput);
+    this.logger.log({ message: 'sensor solved', sensor: reeseSensor.slice(0, 100) });
+    const staticReeseSubmitUrl = protocol + '//' + domain + staticReeseSubmitPath;
 
     // UTMVC
     const utmvcScriptPath = parseUtmvcScriptPath(indexHtml);
-    const submitPath = generateUtmvcScriptPath();
-    // let utmvc: string;
+    if (utmvcScriptPath) {
+      const utmvcSubmitPath = generateUtmvcScriptPath();
 
-    const utmvcScriptUrl = protocol + '//' + domain + utmvcScriptPath;
-    const { data: utmvcScript, contentType: utmvcScriptContentType } = await this.fetch({ url: utmvcScriptUrl, referer: rootUrl });
+      const utmvcSubmitUrl = protocol + '//' + domain + utmvcSubmitPath;
+      const utmvcScriptUrl = protocol + '//' + domain + utmvcScriptPath;
 
-    this.logger.log({ message: `[UTMVC SCRIPT]`, utmvcScriptUrl, utmvcScript: utmvcScript.slice(0, 100), utmvcScriptContentType });
+      const { data: utmvcScript, contentType: utmvcScriptContentType } = await this.fetch({ url: utmvcScriptUrl, referer: rootUrl });
 
-    // //hypersdk
-    // const utmvcInput = new UtmvcInput(this.userAgent, utmvcScript, hyperSdkSessionIds);
-    // const { payload: utmvcCookie, swhanedl } = await generateUtmvcCookie(hyperSdkSession, utmvcInput);
+      this.logger.log({ message: `[UTMVC SCRIPT]`, utmvcScriptUrl, utmvcScript: utmvcScript.slice(0, 100), utmvcScriptContentType, utmvcSubmitPath });
 
-    // this.logger.log({ utmvcCookie: utmvcCookie.slice(0, 100), swhanedl });
+      // //hypersdk
+      const utmvcInput = new UtmvcInput(this.userAgent, utmvcScript, hyperSdkSessionIds);
+      const { payload: utmvcCookie, swhanedl } = await generateUtmvcCookie(hyperSdkSession, utmvcInput);
+      this.logger.log({ message: `[UTMVC SCRIPT] generated [v]`, utmvcCookie: utmvcCookie.slice(0, 100), swhanedl });
+      await this.setUtmvcCookie(utmvcCookie);
+
+      //submit token
+      const {
+        data: utmvcSubmitResponse,
+        contentType: utmvcSubmitContentType,
+        setCookie: utmvcSubmitSetCookie,
+      } = await this.fetch({ url: utmvcSubmitUrl, referer: rootUrl });
+
+      this.logger.log({ message: `[UTMVC TOKEN] submited [v]`, utmvcSubmitResponse, utmvcSubmitContentType, utmvcSubmitSetCookie });
+    }
+
+    const reeseTimeStamp = new Date();
+    const { data: reeseToken } = (await this.fetch({ url: staticReeseSubmitUrl, body: reeseSensor })) as { data: reese84Token };
+    await this.setReese84Cookie(reeseToken);
 
     return {};
   }
@@ -344,6 +385,25 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       this.logger.log(`Successfully set reese84 cookie for ${cookieDomain}`);
     } catch (error) {
       this.logger.error(`Failed to set reese84 cookie: ${error.message}`);
+    }
+  }
+  async setUtmvcCookie(utmvcCookie) {
+    const cookieDomain = '.dubizzle.com';
+    const normalizedDomain = cookieDomain.substring(1);
+    const contextUrl = `https://${normalizedDomain}/`;
+    const cookie = new Cookie({
+      key: '___utmvc',
+      value: utmvcCookie,
+      domain: cookieDomain,
+      path: '/',
+      secure: true, // Usually required for these security tokens
+      httpOnly: true, // Best practice
+    });
+    try {
+      await this.cookieJar.setCookie(cookie, contextUrl);
+      this.logger.log(`Successfully set utmvc cookie for ${cookieDomain}`);
+    } catch (error) {
+      this.logger.error(`Failed to set utmvc cookie: ${error.message}`);
     }
   }
   onModuleDestroy() {
