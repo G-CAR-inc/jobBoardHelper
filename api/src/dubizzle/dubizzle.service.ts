@@ -118,6 +118,32 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       return error.response;
     }
   }
+  private async handleReeseSensor(props: { reeseUrl: string; rootUrl: string; hyperSdkSession: HyperSdkSession }) {
+    const { reeseUrl, rootUrl, hyperSdkSession } = props;
+    const { data: reeseScript, contentType: reeseContentType } = await this.fetch({
+      url: reeseUrl,
+      referer: rootUrl,
+    });
+
+    // this.logger.log({
+    //   message: '[STATIC REESE] fetched',
+    //   scriptPreview: staticReeseScript.slice(0, 100),
+    //   // dynamicReeseScript,
+    //   contentType: staticReeseContentType,
+    //   hasStaticReese,
+    //   staticReeseSubmitPath,
+    // });
+
+    // //hypersdk
+    const reeseInput = new Reese84Input(this.userAgent, this.ip, this.acceptLanguage, rootUrl, reeseScript, reeseUrl);
+    // this.logger.log({ reeseInput });
+    const reeseSensor = await generateReese84Sensor(hyperSdkSession, reeseInput);
+    this.sdkUsage++;
+    return reeseSensor;
+  }
+  private async submitReeseSensor(props:{}){
+    
+  }
   async handleDynamicReese(props: { rootUrl: string; indexHtml: string; ip: string; hyperSdkSession: HyperSdkSession }) {
     const { rootUrl, indexHtml, ip, hyperSdkSession } = props;
     const rootUrlObj = new URL(rootUrl);
@@ -128,26 +154,9 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const dynamicReeseScriptPaths = parseDynamicReeseScript(indexHtml, rootUrl);
     // get reese84 sensor script
     const dynamicReeseUrl = protocol + '//' + domain + dynamicReeseScriptPaths.scriptPath;
-    const { data: dynamicReeseScript, contentType } = await this.fetch({
-      url: dynamicReeseUrl,
-      referer: rootUrl,
-    });
+    const dynamicReeseSensor = await this.handleReeseSensor({ reeseUrl: dynamicReeseUrl, rootUrl, hyperSdkSession });
 
-    this.logger.log({
-      message: 'Dynamic script fetched',
-      scriptPreview: dynamicReeseScript.slice(0, 100),
-      contentType,
-    });
-
-    // Generate the sensor payload via hypersoultion sdk
-    // const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, rootUrl, dynamicReeseScript, dynamicReeseScriptPaths.scriptPath);
-
-    const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, rootUrl, dynamicReeseScript, dynamicReeseUrl);
-    // this.logger.log({ reeseInput });
-    const reeseSensor = await generateReese84Sensor(hyperSdkSession, reeseInput);
-    this.sdkUsage++;
-
-    this.logger.log({ message: 'sensor solved', sensor: reeseSensor.slice(0, 100) });
+    this.logger.log({ message: 'sensor solved', sensor: dynamicReeseSensor.slice(0, 100) });
 
     //send the soved captcha to dubizzle back
 
@@ -233,14 +242,14 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       referer: rootUrl,
     });
 
-    this.logger.log({
-      message: '[STATIC REESE] fetched',
-      scriptPreview: staticReeseScript.slice(0, 100),
-      // dynamicReeseScript,
-      contentType: staticReeseContentType,
-      hasStaticReese,
-      staticReeseSubmitPath,
-    });
+    // this.logger.log({
+    //   message: '[STATIC REESE] fetched',
+    //   scriptPreview: staticReeseScript.slice(0, 100),
+    //   // dynamicReeseScript,
+    //   contentType: staticReeseContentType,
+    //   hasStaticReese,
+    //   staticReeseSubmitPath,
+    // });
     // //hypersdk
     const reeseInput = new Reese84Input(this.userAgent, this.ip, this.acceptLanguage, rootUrl, staticReeseScript, staticReeseUrl);
     // this.logger.log({ reeseInput });
@@ -381,9 +390,9 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   async visitJobsDomain() {
     const rootUrl = 'https://jobs.dubizzle.com/';
     await this.loadLatestModuleState();
-    this.logger.log(await this.getModuleCurrentState());
+    this.logger.log(await this.getCookieString(rootUrl));
     // sleep(5);
-    await this.bypassIncapsula({ rootUrl });
+    // await this.bypassIncapsula({ rootUrl });
   }
   /**
    * Helper: Stores an array of Set-Cookie strings into the jar.
