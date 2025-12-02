@@ -15,7 +15,7 @@ import { BypassRepository } from './repositories/bypass.repository';
     }),
   ],
   controllers: [DubizzleController],
-  providers: [DubizzleService, BrowserSessionRepository, BypassRepository],
+  providers: [DubizzleService, BypassRepository],
   exports: [DubizzleService],
 })
 export class DubizzleModule {}

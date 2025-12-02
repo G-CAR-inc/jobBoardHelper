@@ -175,7 +175,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const hasStaticReese = regex.test(htmlString);
     return { hasStaticReese, staticReesePath, staticReeseSubmitPath };
   }
-  async bypassIncapsula(props: { rootUrl: string }) {
+  private async bypassIncapsula(props: { rootUrl: string }) {
     this.logger.log('[START] scrapping...');
     const { rootUrl } = props;
     //find latest session
@@ -288,7 +288,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     return { validReeseToken, reeseTimeStamp, ifDynamicReesePresent };
   }
-  async sendAuthRequest(props: { email: string; password: string } | null) {
+  private async sendAuthRequest(props: { email: string; password: string } | null) {
     let resp: any;
     const authEndpointUrl = 'https://uae.dubizzle.com/auth/login/v6/';
     if (props) {
@@ -361,7 +361,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     });
     this.logger.log(resp);
   }
-  async fetch(props: {
+  private async fetch(props: {
     url: string;
     headers?: Record<string, string>;
     body?: any;
@@ -426,7 +426,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   /**
    * Sets the 'reese84' cookie from the provided JSON token object.
    */
-  async setReese84Cookie(tokenData: reese84Token) {
+  public async setReese84Cookie(tokenData: reese84Token) {
     const { token, renewInSec, cookieDomain } = tokenData;
 
     const cookie = new Cookie({
@@ -450,7 +450,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`Failed to set reese84 cookie: ${error.message}`);
     }
   }
-  async setUtmvcCookie(utmvcCookie) {
+  private async setUtmvcCookie(utmvcCookie: string) {
     const cookieDomain = '.dubizzle.com';
     const normalizedDomain = cookieDomain.substring(1);
     const contextUrl = `https://${normalizedDomain}/`;
@@ -471,5 +471,18 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   }
   onModuleDestroy() {
     this.logger.warn(`[DESTROYING]....`);
+  }
+  async getModuleCurrentState() {
+    //mock
+    await this.setReese84Cookie({ token: 'asjdlkqjwieoj1829u39u', cookieDomain: 'uae.dubizzle.com', renewInSec: 123 });
+    await this.setReese84Cookie({ token: '2380293u998', cookieDomain: '.dubizzle.com', renewInSec: 123 });
+
+    //
+    const { cookies } = this.cookieJar.toJSON() as unknown as { cookies: Cookie[] };
+    const localStorage = { access_token: this.access_token ?? null, refresh_token: this.refresh_token ?? null };
+    return { cookies, localStorage };
+  }
+  async saveModuleState() {
+    const { cookies, localStorage } = await this.getModuleCurrentState();
   }
 }

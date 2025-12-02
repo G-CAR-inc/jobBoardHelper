@@ -27,4 +27,8 @@ export class DubizzleController {
   async getCookieState(@Query('domain') domain: string) {
     return await this.dubizzleService.cookieJar.getCookies(`https://${domain}`);
   }
+  @Get('state/current')
+  async getModuleCurrentState() {
+    return this.dubizzleService.getModuleCurrentState();
+  }
 }
