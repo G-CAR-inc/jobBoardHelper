@@ -46,7 +46,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
   private access_token: string;
   private refresh_token: string;
-
+  private reese84: Cookie;
   constructor(
     @Inject() private readonly http: HttpService,
     @Inject() private readonly config: ConfigService,
@@ -118,6 +118,14 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       return error.response;
     }
   }
+  private checkIfReeseValid(): boolean {
+    const { creation } = this.reese84 as { creation: Date };
+    const now = new Date();
+    this.logger.log(
+      `Number(this.reese84.maxAge!) - Math.abs((now.getTime() - creation.getTime()) / 1000) = ${Number(this.reese84.maxAge!) - Math.abs((now.getTime() - creation.getTime()) / 1000)}`,
+    );
+    return Number(this.reese84.maxAge!) - Math.abs((now.getTime() - creation.getTime()) / 1000) > 0;
+  }
   private async handleReeseSensor(props: { reeseUrl: string; rootUrl: string; hyperSdkSession: HyperSdkSession }) {
     const { reeseUrl, rootUrl, hyperSdkSession } = props;
     const { data: reeseScript, contentType: reeseContentType } = await this.fetch({
@@ -141,8 +149,12 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     this.sdkUsage++;
     return reeseSensor;
   }
-  private async submitReeseSensor(props:{}){
-    
+  private async submitReeseSensor(props: { reeeseSensorUrl: string; reeseSensor?: any }) {
+    const { reeeseSensorUrl, reeseSensor } = props;
+    const reeseTimeStamp = new Date();
+    const { data: reeseToken } = (await this.fetch({ url: reeeseSensorUrl, body: reeseSensor, method: 'POST' })) as { data: reese84Token };
+    // this.logger.log({ message: 'dubizzle response', reeseToken });
+    await this.setReese84Cookie(reeseToken);
   }
   async handleDynamicReese(props: { rootUrl: string; indexHtml: string; ip: string; hyperSdkSession: HyperSdkSession }) {
     const { rootUrl, indexHtml, ip, hyperSdkSession } = props;
@@ -162,7 +174,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     const reeeseSensorUrl = protocol + '//' + domain + dynamicReeseScriptPaths.sensorPath;
     const reeseTimeStamp = new Date();
-    const { data: reeseToken } = (await this.fetch({ url: reeeseSensorUrl, body: reeseSensor })) as { data: reese84Token };
+    const { data: reeseToken } = (await this.fetch({ url: reeeseSensorUrl, body: dynamicReeseSensor })) as { data: reese84Token };
     // this.logger.log({ message: 'dubizzle response', reeseToken });
     await this.setReese84Cookie(reeseToken);
     return { reeseTimeStamp, reeseToken };
@@ -465,6 +477,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const contextUrl = `https://${normalizedDomain}/`;
 
     // 3. Store it in the jar
+    this.reese84 = cookie;
     try {
       await this.cookieJar.setCookie(cookie, contextUrl);
       this.logger.log(`Successfully set reese84 cookie for ${cookieDomain}`);
