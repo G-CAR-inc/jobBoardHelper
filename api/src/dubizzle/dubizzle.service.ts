@@ -341,6 +341,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const getMagicLinkEndpointUrl = 'https://uae.dubizzle.com/auth/request_email_magic_link/';
     await this.fetch({ url: getMagicLinkEndpointUrl, body: { dbz_ref_id }, access_token: this.access_token });
     this.logger.log(`[MAGIC LINK] requested`);
+    await this.saveModuleState();
+
     return;
   }
   async processMagicLink(magicLink: string) {
@@ -362,7 +364,17 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       body: { magic_link_url_id: token },
       referer: verificationReferer,
     });
+    const { access_token, refresh_token, otp_verification_failed } = resp as unknown as {
+      access_token: string;
+      refresh_token: string;
+      otp_verification_failed: boolean;
+    };
+
+    this.access_token = access_token;
+    this.refresh_token = refresh_token;
+
     this.logger.log(resp);
+    await this.saveModuleState();
   }
   /**
    * Helper: Stores an array of Set-Cookie strings into the jar.
@@ -487,6 +499,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const { id: sessionId } = session;
 
     await this.bypassRepo.saveCookiesBulk(sessionId, cookies);
+    this.logger.log('module state saved');
   }
   async setModuleState(props: {
     cookies: Cookie[];
