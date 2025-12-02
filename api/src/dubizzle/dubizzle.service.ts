@@ -1,3 +1,4 @@
+import { defineConfig } from 'prisma/config';
 import { Session } from './../../node_modules/.prisma/client/index.d';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
@@ -26,6 +27,7 @@ export interface DubizzleServiceState {
   localStorage: {
     access_token: string;
     refresh_token: string;
+    // reese84:
   };
 }
 
@@ -376,6 +378,13 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(resp);
     await this.saveModuleState();
   }
+  async visitJobsDomain() {
+    const rootUrl = 'https://jobs.dubizzle.com/';
+    await this.loadLatestModuleState();
+    this.logger.log(await this.getModuleCurrentState());
+    // sleep(5);
+    await this.bypassIncapsula({ rootUrl });
+  }
   /**
    * Helper: Stores an array of Set-Cookie strings into the jar.
    * tough-cookie validates the domain, so we must provide the 'currentUrl'.
@@ -501,27 +510,31 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     await this.bypassRepo.saveCookiesBulk(sessionId, cookies);
     this.logger.log('module state saved');
   }
-  async setModuleState(props: {
-    cookies: Cookie[];
-    localStorage: {
-      access_token: string;
-      refresh_token: string;
-    };
-  }) {
+  async setModuleState(props: DubizzleServiceState) {
     const { cookies, localStorage } = props;
 
     const { access_token, refresh_token } = localStorage;
     this.access_token = access_token;
     this.refresh_token = refresh_token;
+    this.sdkUsage = 0;
 
     this.cookieJar = new CookieJar();
     await this.updateCookieJarWithCookieArray(cookies);
   }
   async loadLatestModuleState() {
     const session = await this.bypassRepo.getLatestSession();
-    this.logger.log(session);
-  }
+    if (!session) {
+      return { success: false };
+    }
 
+    const cookies = session?.cookies.map((rawCookie): Cookie => {
+      const { key, value, domain, path, maxAge, secure, httpOnly } = rawCookie;
+      return new Cookie({ key, value, domain, path, maxAge, secure, httpOnly });
+    })!;
+
+    await this.setModuleState({ cookies, localStorage: { access_token: session?.accessToken!, refresh_token: session?.refreshToken! } });
+    return { success: true };
+  }
 
   // getVacancies({ cookieString, access_token }: { cookieString: string; access_token: string }) {
   //   const url = `${this.urlToParse}/svc/ats/api/v1/listing?status=live`;

@@ -56,7 +56,7 @@ describe('DubizzleService', () => {
   });
   it('should return Incapsula resource', async () => {
     try {
-      await service.requestMagicLink();
+      await service.visitJobsDomain();
     } catch (e) {
       Logger.error(e);
     }
