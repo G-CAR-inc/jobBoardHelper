@@ -20,8 +20,15 @@ import {
 import { getPublicIp, sleep } from '../utils/shared/srared.utils';
 import { reese84Token } from './types';
 import { BypassRepository } from './repositories/bypass.repository';
-import { lookup } from 'dns';
-import { log } from 'console';
+
+export interface DubizzleServiceState {
+  cookies: Cookie[];
+  localStorage: {
+    access_token: string;
+    refresh_token: string;
+  };
+}
+
 @Injectable()
 export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DubizzleService.name);
@@ -30,7 +37,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   private acceptLanguage: string;
   private accept: string;
 
-  private reeseResourcePath: string;
+  private ip: string;
+  private sdkUsage: number = 0;
 
   public cookieJar = new CookieJar();
 
@@ -46,60 +54,67 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     const userAgent = this.config.getOrThrow<string>('USER_AGENT');
 
-    const reeseResourcePath = this.config.getOrThrow<string>('REESE_RESOURCE_PATH');
-
     const acceptLanguage = this.config.getOrThrow<string>('ACCEPT_LANGUAGE');
 
     const accept = this.config.getOrThrow<string>('ACCEPT');
-    // const {
-    //   data: {
-    //     versions: [agent],
-    //   },
-    // } = await this.getUserAgents();
-    // this.userAgent = agent.name;
+
+    const { ip } = await getPublicIp();
+
     this.userAgent = userAgent;
     this.acceptLanguage = acceptLanguage;
     this.accept = accept;
 
-    this.reeseResourcePath = reeseResourcePath;
+    this.ip = ip;
     this.logger.log('[SUCCESS] initialized');
-  } /**
-   * Helper: Stores an array of Set-Cookie strings into the jar.
-   * tough-cookie validates the domain, so we must provide the 'currentUrl'.
-   */
-  private async updateCookieJar(setCookies: string[] | undefined, currentUrl: string) {
-    if (!setCookies || !Array.isArray(setCookies)) return;
+  }
 
-    for (const cookieStr of setCookies) {
-      try {
-        // setCookie is async
-        await this.cookieJar.setCookie(cookieStr, currentUrl);
-      } catch (err) {
-        this.logger.warn(`Failed to set cookie: ${cookieStr} for url ${currentUrl}`, err);
+  private async fetch(props: {
+    url: string;
+    headers?: Record<string, string>;
+    body?: any;
+    access_token?: string;
+    method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; // Optional: infer from body if missing
+    referer?: string;
+  }) {
+    const { url, headers: customHeaders = {}, body, access_token, method, referer } = props;
+    const cookieString = await this.getCookieString(url)!;
+    // 1. Construct Default Headers
+    const headers = {
+      Accept: this.accept,
+      'Accept-Language': this.acceptLanguage,
+      'User-Agent': this.userAgent,
+      'x-access-token': access_token || this.access_token, // Custom auth header
+      Cookie: cookieString,
+      Referer: referer,
+      ...customHeaders, // Allow specific overrides
+    };
+
+    const requestMethod = method || (body ? 'POST' : 'GET');
+
+    try {
+      console.log(`fetching ${requestMethod} url:${url} ....\ncookies:${cookieString}`);
+      const response = await this.http.axiosRef.request({
+        url,
+        method: requestMethod,
+        headers,
+        data: body,
+      });
+      const { data, headers: respHeaders, status } = response;
+      const contentType = response.headers['content-type'];
+
+      const setCookie = respHeaders['set-cookie'];
+
+      await this.updateCookieJarWithCookieStrings(setCookie, url);
+      return { data, setCookie, contentType, headers: respHeaders, status };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error.message}`);
+      } else {
+        this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error}`);
       }
+      // throw error;
+      return error.response;
     }
-  }
-
-  /**
-   * Helper: Gets the Cookie header string for a specific URL.
-   */
-  private getCookieString(url: string): Promise<string> {
-    return this.cookieJar.getCookieString(url);
-  }
-
-  /**
-   * Helper: Extracts cookies from the jar and maps them to the format
-   * expected by hyper-sdk-js (Simple key-value objects).
-   */
-  private async getHyperCookies(url: string): Promise<HyperCookie[]> {
-    const cookies = await this.cookieJar.getCookies(url);
-    return cookies.map((c) => ({
-      name: c.key,
-      value: c.value,
-    }));
-  }
-  getUserAgents() {
-    return this.fetch({ url: 'https://versionhistory.googleapis.com/v1/chrome/platforms/win/channels/stable/versions/' });
   }
   async handleDynamicReese(props: { rootUrl: string; indexHtml: string; ip: string; hyperSdkSession: HyperSdkSession }) {
     const { rootUrl, indexHtml, ip, hyperSdkSession } = props;
@@ -119,18 +134,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     this.logger.log({
       message: 'Dynamic script fetched',
       scriptPreview: dynamicReeseScript.slice(0, 100),
-      // dynamicReeseScript,
       contentType,
     });
-
-    // this.logger.log({
-    //   message: 'State before dynamic script fetch',
-
-    //   sessionIds: hyperSdkSessionIds,
-    //   resourcePath: utmvcScriptPath,
-    //   dynamicScript: dynamicReeseScriptPaths,
-    //   submitPath,
-    // });
 
     // Generate the sensor payload via hypersoultion sdk
     // const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, rootUrl, dynamicReeseScript, dynamicReeseScriptPaths.scriptPath);
@@ -138,6 +143,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, rootUrl, dynamicReeseScript, dynamicReeseUrl);
     // this.logger.log({ reeseInput });
     const reeseSensor = await generateReese84Sensor(hyperSdkSession, reeseInput);
+    this.sdkUsage++;
+
     this.logger.log({ message: 'sensor solved', sensor: reeseSensor.slice(0, 100) });
 
     //send the soved captcha to dubizzle back
@@ -149,6 +156,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     await this.setReese84Cookie(reeseToken);
     return { reeseTimeStamp, reeseToken };
   }
+
   getStaticReeseInfo(htmlString: string, htmlUrl: string) {
     // The specific path we are looking for
     const staticReesePath = '/We-a-did-and-He-him-as-desir-call-their-Banquo-B';
@@ -183,17 +191,9 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     const domain = rootUrlObj.host;
     const protocol = rootUrlObj.protocol;
-    const { ip } = await getPublicIp();
-    const session = await this.bypassRepo.saveSession({
-      userAgent: this.userAgent,
-      accept: this.accept,
-      acceptLanguage: this.acceptLanguage,
-      publicIp: ip,
-      domain,
-    });
+
     this.logger.log({
       message: 'bypass config',
-      session,
     });
 
     //1 GET INDEX.HTML
@@ -210,7 +210,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const hyperSdkSession = new HyperSdkSession(this.config.getOrThrow<string>('HYPER_SDK_API_KEY'));
 
     if (ifDynamicReesePresent) {
-      await this.handleDynamicReese({ rootUrl, ip, hyperSdkSession, indexHtml });
+      await this.handleDynamicReese({ rootUrl, ip: this.ip, hyperSdkSession, indexHtml });
 
       const { data } = await this.fetch({ url: rootUrl });
 
@@ -240,9 +240,10 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       staticReeseSubmitPath,
     });
     // //hypersdk
-    const reeseInput = new Reese84Input(this.userAgent, ip, this.acceptLanguage, rootUrl, staticReeseScript, staticReeseUrl);
+    const reeseInput = new Reese84Input(this.userAgent, this.ip, this.acceptLanguage, rootUrl, staticReeseScript, staticReeseUrl);
     // this.logger.log({ reeseInput });
     const reeseSensor = await generateReese84Sensor(hyperSdkSession, reeseInput);
+    this.sdkUsage++;
     this.logger.log({ message: 'sensor solved', sensor: reeseSensor.slice(0, 100) });
     const staticReeseSubmitUrl = protocol + '//' + domain + staticReeseSubmitPath;
 
@@ -260,7 +261,10 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
       // //hypersdk
       const utmvcInput = new UtmvcInput(this.userAgent, utmvcScript, hyperSdkSessionIds);
+
       const { payload: utmvcCookie, swhanedl } = await generateUtmvcCookie(hyperSdkSession, utmvcInput);
+      this.sdkUsage++;
+
       this.logger.log({ message: `[UTMVC SCRIPT] generated [v]`, utmvcCookie: utmvcCookie, swhanedl });
       await this.setUtmvcCookie(utmvcCookie);
 
@@ -360,68 +364,57 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     });
     this.logger.log(resp);
   }
-  private async fetch(props: {
-    url: string;
-    headers?: Record<string, string>;
-    body?: any;
-    access_token?: string;
-    method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; // Optional: infer from body if missing
-    referer?: string;
-  }) {
-    const { url, headers: customHeaders = {}, body, access_token, method, referer } = props;
-    const cookieString = await this.getCookieString(url)!;
-    // 1. Construct Default Headers
-    const headers = {
-      Accept: this.accept,
-      'Accept-Language': this.acceptLanguage,
-      'User-Agent': this.userAgent,
-      'x-access-token': access_token || this.access_token, // Custom auth header
-      Cookie: cookieString,
-      Referer: referer,
-      ...customHeaders, // Allow specific overrides
-    };
+  /**
+   * Helper: Stores an array of Set-Cookie strings into the jar.
+   * tough-cookie validates the domain, so we must provide the 'currentUrl'.
+   */
+  private async updateCookieJarWithCookieStrings(setCookies: string[] | undefined, currentUrl: string) {
+    if (!setCookies || !Array.isArray(setCookies)) return;
 
-    const requestMethod = method || (body ? 'POST' : 'GET');
-
-    try {
-      console.log(`fetching ${requestMethod} url:${url} ....\ncookies:${cookieString}`);
-      const response = await this.http.axiosRef.request({
-        url,
-        method: requestMethod,
-        headers,
-        data: body,
-      });
-      const { data, headers: respHeaders, status } = response;
-      const contentType = response.headers['content-type'];
-
-      const setCookie = respHeaders['set-cookie'];
-
-      await this.updateCookieJar(setCookie, url);
-      return { data, setCookie, contentType, headers: respHeaders, status };
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error.message}`);
-      } else {
-        this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error}`);
+    for (const cookieStr of setCookies) {
+      try {
+        // setCookie is async
+        await this.cookieJar.setCookie(cookieStr, currentUrl);
+      } catch (err) {
+        this.logger.warn(`Failed to set cookie: ${cookieStr} for url ${currentUrl}`, err);
       }
-      // throw error;
-      return error.response;
     }
   }
-  // getVacancies({ cookieString, access_token }: { cookieString: string; access_token: string }) {
-  //   const url = `${this.urlToParse}/svc/ats/api/v1/listing?status=live`;
-  //   return this.fetch({ url, access_token, method: 'GET' });
-  // }
-  // getApplies(props: { vacancyIds: string[]; cookieString: string; access_token: string }) {
-  //   const { vacancyIds, access_token } = props;
+  private async updateCookieJarWithCookieArray(cookies: Cookie[]) {
+    for (const cookie of cookies) {
+      const cleanDomain = cookie.domain!.startsWith('.') ? cookie.domain!.substring(1) : cookie.domain;
 
-  //   return Promise.all(
-  //     vacancyIds.map((vacancyId) => {
-  //       const url = `${this.urlToParse}/svc/ats/api/v4/application?job_listing=${vacancyId}&is_in_pipeline=1&sort_by=created_at`;
-  //       return this.fetch({ url, access_token, method: 'GET' });
-  //     }),
-  //   );
-  // }
+      const url = `https://${cleanDomain}${cookie.path}`;
+      try {
+        await this.cookieJar.setCookie(cookie, url);
+      } catch (err) {
+        this.logger.warn(`Failed to import cookie ${cookie.key}: ${err.message}`);
+      }
+    }
+  }
+
+  /**
+   * Helper: Gets the Cookie header string for a specific URL.
+   */
+  private getCookieString(url: string): Promise<string> {
+    return this.cookieJar.getCookieString(url);
+  }
+
+  /**
+   * Helper: Extracts cookies from the jar and maps them to the format
+   * expected by hyper-sdk-js (Simple key-value objects).
+   */
+  private async getHyperCookies(url: string): Promise<HyperCookie[]> {
+    const cookies = await this.cookieJar.getCookies(url);
+    return cookies.map((c) => ({
+      name: c.key,
+      value: c.value,
+    }));
+  }
+  getUserAgents() {
+    return this.fetch({ url: 'https://versionhistory.googleapis.com/v1/chrome/platforms/win/channels/stable/versions/' });
+  }
+
   /**
    * Sets the 'reese84' cookie from the provided JSON token object.
    */
@@ -469,19 +462,61 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     }
   }
   onModuleDestroy() {
-    this.logger.warn(`[DESTROYING]....`);
+    this.logger.log(`[DESTROYING]....`);
   }
-  async getModuleCurrentState() {
+  async getModuleCurrentState(): Promise<DubizzleServiceState> {
     //mock
-    await this.setReese84Cookie({ token: 'asjdlkqjwieoj1829u39u', cookieDomain: 'uae.dubizzle.com', renewInSec: 123 });
-    await this.setReese84Cookie({ token: '2380293u998', cookieDomain: '.dubizzle.com', renewInSec: 123 });
+    // await this.setReese84Cookie({ token: 'asjdlkqjwieoj1829u39u', cookieDomain: 'uae.dubizzle.com', renewInSec: 123 });
+    // await this.setReese84Cookie({ token: '2380293u998', cookieDomain: '.dubizzle.com', renewInSec: 123 });
 
     //
     const { cookies } = this.cookieJar.toJSON() as unknown as { cookies: Cookie[] };
+    // this.logger.log(cookies[0].toString());
     const localStorage = { access_token: this.access_token ?? null, refresh_token: this.refresh_token ?? null };
-    return { cookies, localStorage };
+    return { cookies, localStorage } as DubizzleServiceState;
   }
   async saveModuleState() {
     const { cookies, localStorage } = await this.getModuleCurrentState();
+
+    const session = await this.bypassRepo.saveSession({
+      publicIp: this.ip,
+      sdkUsage: this.sdkUsage,
+      accessToken: localStorage.access_token,
+      refreshToken: localStorage.refresh_token,
+    });
+    const { id: sessionId } = session;
+
+    await this.bypassRepo.saveCookiesBulk(sessionId, cookies);
   }
+  async setModuleState(props: {
+    cookies: Cookie[];
+    localStorage: {
+      access_token: string;
+      refresh_token: string;
+    };
+  }) {
+    const { cookies, localStorage } = props;
+
+    const { access_token, refresh_token } = localStorage;
+    this.access_token = access_token;
+    this.refresh_token = refresh_token;
+
+    this.cookieJar = new CookieJar();
+    await this.updateCookieJarWithCookieArray(cookies);
+  }
+
+  // getVacancies({ cookieString, access_token }: { cookieString: string; access_token: string }) {
+  //   const url = `${this.urlToParse}/svc/ats/api/v1/listing?status=live`;
+  //   return this.fetch({ url, access_token, method: 'GET' });
+  // }
+  // getApplies(props: { vacancyIds: string[]; cookieString: string; access_token: string }) {
+  //   const { vacancyIds, access_token } = props;
+
+  //   return Promise.all(
+  //     vacancyIds.map((vacancyId) => {
+  //       const url = `${this.urlToParse}/svc/ats/api/v4/application?job_listing=${vacancyId}&is_in_pipeline=1&sort_by=created_at`;
+  //       return this.fetch({ url, access_token, method: 'GET' });
+  //     }),
+  //   );
+  // }
 }

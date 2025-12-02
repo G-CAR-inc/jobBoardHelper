@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCookieDto, CreateReese84Dto, CreateSessionDto, CreateUtmvcDto } from '../types';
+import { Session } from '@prisma/client';
+import { Cookie } from 'tough-cookie';
 
 @Injectable()
 export class BypassRepository {
@@ -13,15 +15,13 @@ export class BypassRepository {
    * Creates a new browsing session.
    * Returns the created session object (including ID).
    */
-  saveSession(dto: CreateSessionDto) {
+  saveSession(dto: Omit<Session, 'id' | 'createdAt'>) {
     return this.prisma.session.create({
       data: {
         publicIp: dto.publicIp,
-        domain: dto.domain,
-        userAgent: dto.userAgent,
-        acceptLanguage: dto.acceptLanguage,
-        accept: dto.accept,
         sdkUsage: dto.sdkUsage,
+        refreshToken: dto.refreshToken,
+        accessToken: dto.accessToken,
       },
     });
   }
@@ -60,15 +60,15 @@ export class BypassRepository {
    * Bulk saves multiple cookies for a session.
    * Useful when parsing a `set-cookie` array header.
    */
-  saveCookiesBulk(sessionId: number, dtos: CreateCookieDto[]) {
+  saveCookiesBulk(sessionId: number, dtos: Cookie[]) {
     // Prisma createMany is more efficient for arrays
     return this.prisma.cookie.createMany({
       data: dtos.map((dto) => ({
-        key: dto.key,
-        value: dto.value,
-        domain: dto.domain,
+        key: dto.key!,
+        value: dto.value!,
+        domain: dto.domain!,
         path: dto.path ?? '/',
-        maxAge: dto.maxAge,
+        maxAge: typeof dto.maxAge === 'number' ? Math.floor(dto.maxAge) : null,
         secure: dto.secure ?? true,
         httpOnly: dto.httpOnly ?? true,
         sessionId: sessionId,
