@@ -17,7 +17,7 @@ model BrowserSession {
 }
 
 model Session {
-  id        String   @id @default(uuid())
+  id        Int   @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
   
   publicIp  String   @map("public_ip")
@@ -25,40 +25,15 @@ model Session {
   userAgent String @map("user_agent")
   acceptLanguage String @map("accept_language")
   accept String
+  sdkUsage Int @map("sdk_usage")
 
-  
   // 1:m Relations
-  utmvcTokens   UtmvcToken[]
-  reese84Tokens Reese84Token[]
   cookies       Cookie[]
 
   @@map("sessions")
 }
 
-model UtmvcToken {
-  id        String   @id @default(uuid())
-  token     String   
-  createdAt DateTime @map("created_at") 
 
- 
-  sessionId String   @map("session_id")
-  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@map("utmvc_tokens")
-}
-
-model Reese84Token {
-  id         String   @id @default(uuid())
-  token      String
-  renewInSec Int      @map("renew_in_sec")
-  createdAt  DateTime @map("created_at") 
-  domain     String
-
-  sessionId String   @map("session_id")
-  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@map("reese84_tokens")
-}
 
 model Cookie {
   id       String  @id @default(uuid())
@@ -71,7 +46,7 @@ model Cookie {
   httpOnly Boolean @default(true) @map("http_only")
 
   // Relation to Session
-  sessionId String  @map("session_id")
+  sessionId Int  @map("session_id")
   session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@map("cookies")

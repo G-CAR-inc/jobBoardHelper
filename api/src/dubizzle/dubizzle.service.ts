@@ -39,7 +39,6 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     @Inject() private readonly http: HttpService,
-    @Inject() private readonly browserSessionRepo: BrowserSessionRepository,
     @Inject() private readonly config: ConfigService,
     @Inject() private readonly bypassRepo: BypassRepository,
   ) {}
