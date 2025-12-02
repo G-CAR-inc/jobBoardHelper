@@ -1,3 +1,4 @@
+
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCookieDto, CreateReese84Dto, CreateSessionDto, CreateUtmvcDto } from '../types';
@@ -32,6 +33,14 @@ export class BypassRepository {
   getSessionById(sessionId: number) {
     return this.prisma.session.findUnique({
       where: { id: sessionId },
+      include: {
+        cookies: true,
+      },
+    });
+  }
+  getLatestSession() {
+    return this.prisma.session.findFirst({
+      orderBy: { createdAt: 'desc' },
       include: {
         cookies: true,
       },

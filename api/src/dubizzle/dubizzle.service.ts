@@ -517,6 +517,11 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     this.cookieJar = new CookieJar();
     await this.updateCookieJarWithCookieArray(cookies);
   }
+  async loadLatestModuleState() {
+    const session = await this.bypassRepo.getLatestSession();
+    this.logger.log(session);
+  }
+
 
   // getVacancies({ cookieString, access_token }: { cookieString: string; access_token: string }) {
   //   const url = `${this.urlToParse}/svc/ats/api/v1/listing?status=live`;

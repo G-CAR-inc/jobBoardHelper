@@ -31,4 +31,8 @@ export class DubizzleController {
   async getModuleCurrentState() {
     return this.dubizzleService.getModuleCurrentState();
   }
+  @Get('state/latest')
+  async getLatestModuleState() {
+    return this.dubizzleService.loadLatestModuleState();
+  }
 }
