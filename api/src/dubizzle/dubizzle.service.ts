@@ -184,7 +184,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const domain = rootUrlObj.host;
     const protocol = rootUrlObj.protocol;
     const { ip } = await getPublicIp();
-    const session = await this.bypassRepo.registerSession({
+    const session = await this.bypassRepo.saveSession({
       userAgent: this.userAgent,
       accept: this.accept,
       acceptLanguage: this.acceptLanguage,

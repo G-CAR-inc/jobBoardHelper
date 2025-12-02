@@ -20,6 +20,7 @@ export interface CreateSessionDto {
   userAgent: string;
   acceptLanguage: string;
   accept: string;
+  sdkUsage: number;
 }
 
 // Input for UTMVC (Manual creation time)

@@ -17,27 +17,25 @@ model BrowserSession {
 }
 
 model Session {
-  id        Int   @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
-  
-  publicIp  String   @map("public_ip")
-  domain    String
-  userAgent String @map("user_agent")
+
+  publicIp       String @map("public_ip")
+  domain         String
+  userAgent      String @map("user_agent")
   acceptLanguage String @map("accept_language")
-  accept String
-  sdkUsage Int @map("sdk_usage")
+  accept         String
+  sdkUsage       Int    @map("sdk_usage")
 
   // 1:m Relations
-  cookies       Cookie[]
+  cookies Cookie[]
 
   @@map("sessions")
 }
 
-
-
 model Cookie {
   id       String  @id @default(uuid())
-  key      String  
+  key      String
   value    String
   domain   String
   path     String  @default("/")
@@ -46,7 +44,7 @@ model Cookie {
   httpOnly Boolean @default(true) @map("http_only")
 
   // Relation to Session
-  sessionId Int  @map("session_id")
+  sessionId Int     @map("session_id")
   session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@map("cookies")
