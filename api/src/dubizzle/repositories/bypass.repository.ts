@@ -95,4 +95,10 @@ export class BypassRepository {
       where: { sessionId },
     });
   }
+  getCookieCreationTimeStampByValue(value: string) {
+    return this.prisma.cookie.findFirst({
+      select: { creation: true },
+      where: { value },
+    });
+  }
 }

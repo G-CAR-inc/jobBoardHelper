@@ -35,4 +35,8 @@ export class DubizzleController {
   async getLatestModuleState() {
     return this.dubizzleService.loadLatestModuleState();
   }
+  @Post('visit-jobs-domain')
+  async visitJobsDomain() {
+    return this.dubizzleService.visitJobsDomain();
+  }
 }
