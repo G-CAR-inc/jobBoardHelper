@@ -35,12 +35,13 @@ model Session {
 model Cookie {
   id       String  @id @default(uuid())
   key      String
-  value    String
   domain   String
   path     String  @default("/")
-  maxAge   Int?    @map("max_age") // Corresponds to renewInSec/Max-Age
   secure   Boolean @default(true)
   httpOnly Boolean @default(true) @map("http_only")
+  maxAge   Int?    @map("max_age") 
+  creation DateTime
+  value    String
 
   // Relation to Session
   sessionId Int     @map("session_id")

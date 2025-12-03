@@ -46,23 +46,25 @@ export class BypassRepository {
     });
   }
 
-  /**
-   * Saves a single cookie.
-   */
-  saveCookie(sessionId: number, dto: CreateCookieDto) {
-    return this.prisma.cookie.create({
-      data: {
-        key: dto.key,
-        value: dto.value,
-        domain: dto.domain,
-        path: dto.path ?? '/',
-        maxAge: dto.maxAge,
-        secure: dto.secure ?? true,
-        httpOnly: dto.httpOnly ?? true,
-        sessionId: sessionId,
-      },
-    });
-  }
+  // /**
+  //  * Saves a single cookie.
+  //  */
+  // saveCookie(sessionId: number, dto: Cookie) {
+  //   return this.prisma.cookie.create({
+  //     data: {
+  //       key: dto.key,
+  //       value: dto.value,
+  //       domain: dto.domain,
+  //       path: dto.path ?? '/',
+  //       maxAge: dto.maxAge,
+  //       secure: dto.secure ?? true,
+  //       httpOnly: dto.httpOnly ?? true,
+  //       sessionId: sessionId,
+
+  //       creation: dto.creation instanceof Date ? dto.creation : new Date(dto.creation!),
+  //     },
+  //   });
+  // }
 
   /**
    * Bulk saves multiple cookies for a session.
@@ -79,6 +81,7 @@ export class BypassRepository {
         maxAge: typeof dto.maxAge === 'number' ? Math.floor(dto.maxAge) : null,
         secure: dto.secure ?? true,
         httpOnly: dto.httpOnly ?? true,
+        creation: dto.creation instanceof Date ? dto.creation : new Date(dto.creation!),
         sessionId: sessionId,
       })),
     });

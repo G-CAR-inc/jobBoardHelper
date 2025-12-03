@@ -1,3 +1,4 @@
+import { reese84Token } from './types/auth.types';
 import { defineConfig } from 'prisma/config';
 import { Session } from './../../node_modules/.prisma/client/index.d';
 import { ConfigService } from '@nestjs/config';
@@ -5,7 +6,6 @@ import { HttpService } from '@nestjs/axios';
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import axios, { AxiosError } from 'axios';
 import { Cookie, CookieJar } from 'tough-cookie';
-import { BrowserSessionRepository } from './repositories/browser-session.repository';
 import {
   generateUtmvcScriptPath,
   getSessionIds,
@@ -19,7 +19,6 @@ import {
   generateUtmvcCookie,
 } from 'hyper-sdk-js';
 import { getPublicIp, sleep } from '../utils/shared/srared.utils';
-import { reese84Token } from './types';
 import { BypassRepository } from './repositories/bypass.repository';
 
 export interface DubizzleServiceState {
@@ -119,12 +118,15 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     }
   }
   private checkIfReeseValid(): boolean {
+    //if valid resent prev reese token to submit path as a text without sensor
+    //if isnt valid sent with reese sensor as old_token prop
+    //
+
     const { creation } = this.reese84 as { creation: Date };
     const now = new Date();
-    this.logger.log(
-      `Number(this.reese84.maxAge!) - Math.abs((now.getTime() - creation.getTime()) / 1000) = ${Number(this.reese84.maxAge!) - Math.abs((now.getTime() - creation.getTime()) / 1000)}`,
-    );
-    return Number(this.reese84.maxAge!) - Math.abs((now.getTime() - creation.getTime()) / 1000) > 0;
+    const remains = Number(this.reese84.maxAge!) - Math.abs((now.getTime() - creation.getTime()) / 1000);
+    this.logger.log(`Number(this.reese84.maxAge!) - Math.abs((now.getTime() - creation.getTime()) / 1000) = ${remains}`);
+    return remains > 0;
   }
   private async handleReeseSensor(props: { reeseUrl: string; rootUrl: string; hyperSdkSession: HyperSdkSession }) {
     const { reeseUrl, rootUrl, hyperSdkSession } = props;
@@ -149,10 +151,16 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     this.sdkUsage++;
     return reeseSensor;
   }
-  private async submitReeseSensor(props: { reeeseSensorUrl: string; reeseSensor?: any }) {
-    const { reeeseSensorUrl, reeseSensor } = props;
-    const reeseTimeStamp = new Date();
-    const { data: reeseToken } = (await this.fetch({ url: reeeseSensorUrl, body: reeseSensor, method: 'POST' })) as { data: reese84Token };
+  private async submitReeseSensor(props: { reeeseSensorSubmitionUrl: string; reeseSensor: any }) {
+    const { reeeseSensorSubmitionUrl, reeseSensor } = props;
+    const isCurrentReeseValid = this.checkIfReeseValid();
+    let body: any = reeseSensor;
+    if (isCurrentReeseValid) {
+      body = this.reese84.value;
+    } else {
+      body.old_token = this.reese84.value;
+    }
+    const { data: reeseToken } = (await this.fetch({ url: reeeseSensorSubmitionUrl, body, method: 'POST' })) as { data: reese84Token };
     // this.logger.log({ message: 'dubizzle response', reeseToken });
     await this.setReese84Cookie(reeseToken);
   }
@@ -173,11 +181,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     //send the soved captcha to dubizzle back
 
     const reeeseSensorUrl = protocol + '//' + domain + dynamicReeseScriptPaths.sensorPath;
-    const reeseTimeStamp = new Date();
-    const { data: reeseToken } = (await this.fetch({ url: reeeseSensorUrl, body: dynamicReeseSensor })) as { data: reese84Token };
-    // this.logger.log({ message: 'dubizzle response', reeseToken });
-    await this.setReese84Cookie(reeseToken);
-    return { reeseTimeStamp, reeseToken };
+
+    await this.submitReeseSensor({ reeeseSensorSubmitionUrl: reeeseSensorUrl, reeseSensor: dynamicReeseSensor });
   }
 
   getStaticReeseInfo(htmlString: string, htmlUrl: string) {
@@ -460,27 +465,35 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   /**
    * Sets the 'reese84' cookie from the provided JSON token object.
    */
-  public async setReese84Cookie(tokenData: reese84Token) {
-    const { token, renewInSec, cookieDomain } = tokenData;
+  public async setReese84Cookie(tokenData: reese84Token | Cookie) {
+    let cookie: Cookie;
+    let contextUrl: string;
+    if (tokenData instanceof Cookie) {
+      cookie = tokenData;
+      const cookieDomain = tokenData.domain!;
+      const normalizedDomain = cookieDomain.startsWith('.') ? cookieDomain.substring(1) : cookieDomain;
+      contextUrl = `https://${normalizedDomain}/`;
+    } else {
+      const { token, renewInSec, cookieDomain } = tokenData;
 
-    const cookie = new Cookie({
-      key: 'reese84',
-      value: token,
-      domain: cookieDomain,
-      path: '/',
-      maxAge: renewInSec, // 'renewInSec' maps directly to Max-Age
-      secure: true, // Usually required for these security tokens
-      httpOnly: true, // Best practice
-    });
+      cookie = new Cookie({
+        key: 'reese84',
+        value: token,
+        domain: cookieDomain,
+        path: '/',
+        maxAge: renewInSec,
+        secure: true,
+        httpOnly: true,
+      });
 
-    const normalizedDomain = cookieDomain.startsWith('.') ? cookieDomain.substring(1) : cookieDomain;
-    const contextUrl = `https://${normalizedDomain}/`;
-
+      const normalizedDomain = cookieDomain.startsWith('.') ? cookieDomain.substring(1) : cookieDomain;
+      contextUrl = `https://${normalizedDomain}/`;
+    }
     // 3. Store it in the jar
     this.reese84 = cookie;
     try {
       await this.cookieJar.setCookie(cookie, contextUrl);
-      this.logger.log(`Successfully set reese84 cookie for ${cookieDomain}`);
+      this.logger.log(`Successfully set reese84 cookie for ${cookie.domain}`);
     } catch (error) {
       this.logger.error(`Failed to set reese84 cookie: ${error.message}`);
     }
@@ -542,6 +555,12 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     this.cookieJar = new CookieJar();
     await this.updateCookieJarWithCookieArray(cookies);
+    if (cookies.some((cookie) => cookie.key === 'reese84')) {
+      const [reese84] = cookies
+        .filter((cookie) => cookie.key === 'reese84')
+        .sort((a, b) => (b.creation as Date).getTime() - (a.creation as Date).getTime());
+      await this.setReese84Cookie(reese84);
+    }
   }
   async loadLatestModuleState() {
     const session = await this.bypassRepo.getLatestSession();
@@ -550,8 +569,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     }
 
     const cookies = session?.cookies.map((rawCookie): Cookie => {
-      const { key, value, domain, path, maxAge, secure, httpOnly } = rawCookie;
-      return new Cookie({ key, value, domain, path, maxAge, secure, httpOnly });
+      const { key, value, domain, path, maxAge, secure, httpOnly, creation } = rawCookie;
+      return new Cookie({ key, value, domain, path, maxAge, secure, httpOnly, creation });
     })!;
 
     await this.setModuleState({ cookies, localStorage: { access_token: session?.accessToken!, refresh_token: session?.refreshToken! } });
