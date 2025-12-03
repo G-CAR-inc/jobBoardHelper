@@ -26,7 +26,6 @@ export interface DubizzleServiceState {
   localStorage: {
     access_token: string;
     refresh_token: string;
-    // reese84:
   };
 }
 
@@ -66,7 +65,13 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     this.accept = accept;
 
     this.ip = ip;
-    this.logger.log('[SUCCESS] initialized');
+
+    const { success } = await this.loadLatestModuleState();
+    this.logger.log(`module latest stating loading up status: ${success}`);
+    if (success) {
+      const { remains, result } = this.checkIfReeseValid();
+      this.logger.log(`last reese84 token state: remains: ${remains}, isActive: ${result}`);
+    }
   }
 
   private async fetch(props: {
@@ -117,7 +122,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       return error.response;
     }
   }
-  private checkIfReeseValid(): boolean {
+  private checkIfReeseValid() {
     //if valid resent prev reese token to submit path as a text without sensor
     //if isnt valid sent with reese sensor as old_token prop
     //
@@ -126,7 +131,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const now = new Date();
     const remains = Number(this.reese84.maxAge!) - Math.abs((now.getTime() - creation.getTime()) / 1000);
     this.logger.log(`Number(this.reese84.maxAge!) - Math.abs((now.getTime() - creation.getTime()) / 1000) = ${remains}`);
-    return remains > 0;
+    const result = remains > 0;
+    return { result, remains };
   }
   private async handleReeseSensor(props: { reeseUrl: string; rootUrl: string; hyperSdkSession: HyperSdkSession }) {
     const { reeseUrl, rootUrl, hyperSdkSession } = props;
@@ -151,9 +157,9 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     this.sdkUsage++;
     return reeseSensor;
   }
-  private async submitReeseSensor(props: { reeeseSensorSubmitionUrl: string; reeseSensor: any }) {
+  private async submitReeseSensor(props: { reeeseSensorSubmitionUrl: string; reeseSensor?: any }) {
     const { reeeseSensorSubmitionUrl, reeseSensor } = props;
-    const isCurrentReeseValid = this.checkIfReeseValid();
+    const { result: isCurrentReeseValid } = this.checkIfReeseValid();
     let body: any = reeseSensor;
     if (isCurrentReeseValid) {
       body = this.reese84.value;
@@ -343,7 +349,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     }
     return authResp;
   }
-
+  // to decorate
   async requestMagicLink() {
     const rootUrl = 'https://uae.dubizzle.com/en/user/auth/';
 
@@ -373,6 +379,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     return;
   }
+  // to decorate
   async processMagicLink(magicLink: string) {
     this.logger.log(magicLink);
     const url = new URL(magicLink);
@@ -404,12 +411,15 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(resp);
     await this.saveModuleState();
   }
+  // to decorate
   async visitJobsDomain() {
     const rootUrl = 'https://jobs.dubizzle.com/';
-    await this.loadLatestModuleState();
+    // await this.loadLatestModuleState();
+
     this.logger.log(await this.getCookieString(rootUrl));
-    // sleep(5);
-    // await this.bypassIncapsula({ rootUrl });
+    await this.bypassIncapsula({ rootUrl });
+
+    sleep(5);
   }
   /**
    * Helper: Stores an array of Set-Cookie strings into the jar.
@@ -570,7 +580,22 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     const cookies = session?.cookies.map((rawCookie): Cookie => {
       const { key, value, domain, path, maxAge, secure, httpOnly, creation } = rawCookie;
-      return new Cookie({ key, value, domain, path, maxAge, secure, httpOnly, creation });
+      this.logger.log(`key:${key} creation:${creation}`);
+      const cookie = new Cookie({
+        key,
+        value,
+        domain,
+        path,
+        maxAge,
+        secure,
+        httpOnly,
+        creation: creation as Date,
+      });
+
+      if (creation) {
+        cookie.creation = new Date(creation);
+      }
+      return cookie;
     })!;
 
     await this.setModuleState({ cookies, localStorage: { access_token: session?.accessToken!, refresh_token: session?.refreshToken! } });
