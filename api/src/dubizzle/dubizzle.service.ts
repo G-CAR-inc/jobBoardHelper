@@ -574,7 +574,10 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     }
   }
   async loadLatestModuleState() {
-    const session = await this.bypassRepo.getLatestSession();
+    // const session = await this.bypassRepo.getLatestSession();
+
+    const session = await this.bypassRepo.getLatestSessionByIp(this.ip);
+
     if (!session) {
       return { success: false };
     }

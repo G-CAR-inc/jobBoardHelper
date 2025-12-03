@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCookieDto, CreateReese84Dto, CreateSessionDto, CreateUtmvcDto } from '../types';
 import { Session } from '@prisma/client';
@@ -44,6 +44,20 @@ export class BypassRepository {
         cookies: true,
       },
     });
+  }
+  getLatestSessionByIp(ip: string) {
+    Logger.log(`selecting last session for ip: ${ip}`);
+    try {
+      return this.prisma.session.findFirst({
+        where: { publicIp: ip },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          cookies: true,
+        },
+      });
+    } catch (e) {
+      Logger.error(e);
+    }
   }
 
   // /**
