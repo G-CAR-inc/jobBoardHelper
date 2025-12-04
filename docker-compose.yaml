@@ -10,12 +10,21 @@ services:
       - "6666:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Optional: Healthcheck ensures the DB is truly ready before others start
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d jobboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   api:
     build: "./api"
     container_name: jobboard-api
+    # Key Fix: Restart ensures the app retries if migration fails on 1st attempt
+    restart: on-failure 
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy # Waits for the explicit healthcheck above
     ports:
       - "3000:3000"
     env_file:

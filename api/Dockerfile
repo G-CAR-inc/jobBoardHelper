@@ -1,4 +1,4 @@
-FROM node:24-slim
+FROM node:24
 
 WORKDIR /usr/src/app
 
@@ -9,11 +9,8 @@ RUN npm install
 
 RUN npx prisma generate
 
-# 6. Copy source code
 COPY . .
 
-# 7. Build the app
 RUN npm run build
 
-# 8. Start command
-CMD [ "npm", "run", "start:prod" ]
+CMD [ "/bin/sh", "-c", "npx prisma migrate deploy && npm run start:prod" ]
