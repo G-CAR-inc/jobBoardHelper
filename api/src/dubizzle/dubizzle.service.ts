@@ -407,7 +407,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   // to decorate
   async visitJobsDomain() {
     const rootUrl = 'https://jobs.dubizzle.com/';
-    // await this.loadLatestModuleState();
+    await this.loadLatestModuleState();
 
     this.logger.log(await this.getCookieString(rootUrl));
     await this.bypassIncapsula({ rootUrl });
