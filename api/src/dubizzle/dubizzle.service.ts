@@ -349,8 +349,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     await this.bypassIncapsula({ rootUrl });
     await sleep(10);
 
-    const email = this.config.getOrThrow<string>('USER_EMAIL');
-    const password = this.config.getOrThrow<string>('USER_PASSWORD');
+    const email = this.config.getOrThrow<string>('DUBIZZLE_EMAIL');
+    const password = this.config.getOrThrow<string>('DUBIZZLE_PASSWORD');
 
     const authResp = await this.sendAuthRequest({ email, password });
 
@@ -421,6 +421,11 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     await this.saveModuleState();
 
     sleep(5);
+  }
+
+  //to decorate
+  async scrap(){
+
   }
   /**
    * Helper: Stores an array of Set-Cookie strings into the jar.
@@ -607,18 +612,18 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     return { success: true };
   }
 
-  // getVacancies({ cookieString, access_token }: { cookieString: string; access_token: string }) {
-  //   const url = `${this.urlToParse}/svc/ats/api/v1/listing?status=live`;
-  //   return this.fetch({ url, access_token, method: 'GET' });
-  // }
-  // getApplies(props: { vacancyIds: string[]; cookieString: string; access_token: string }) {
-  //   const { vacancyIds, access_token } = props;
+  getVacancies({ cookieString, access_token }: { cookieString: string; access_token: string }) {
+    const url = `https://jobs.dubizzle.com/svc/ats/api/v1/listing?status=live`;
+    return this.fetch({ url, access_token, method: 'GET' });
+  }
+  getApplies(props: { vacancyIds: string[]; }) {
+    const { vacancyIds } = props;
 
-  //   return Promise.all(
-  //     vacancyIds.map((vacancyId) => {
-  //       const url = `${this.urlToParse}/svc/ats/api/v4/application?job_listing=${vacancyId}&is_in_pipeline=1&sort_by=created_at`;
-  //       return this.fetch({ url, access_token, method: 'GET' });
-  //     }),
-  //   );
-  // }
+    return Promise.all(
+      vacancyIds.map((vacancyId) => {
+        const url = `https://jobs.dubizzle.com/svc/ats/api/v4/application?job_listing=${vacancyId}&is_in_pipeline=1&sort_by=created_at`;
+        return this.fetch({ url, method: 'GET' });
+      }),
+    );
+  }
 }

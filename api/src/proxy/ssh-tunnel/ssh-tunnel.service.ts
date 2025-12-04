@@ -9,26 +9,34 @@ export class SshTunnelService implements OnModuleInit, OnModuleDestroy {
   private sshProcess: ChildProcess | null = null;
   private readonly localPort = 1337; // The port for localhost:1337
   private readonly socksHost = '127.0.0.1';
+  
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly config: ConfigService) {}
 
   onModuleInit() {
-    this.openTunnel();
+    const useProxy:boolean=Boolean(this.config.get<number>('USE_PROXY'));
+    this.logger.log({useProxy})
+    if(useProxy){
+      this.openTunnel()
+    }
   }
 
   onModuleDestroy() {
-    this.closeTunnel();
+
+    const useProxy:boolean=Boolean(this.config.get<number>('USE_PROXY'));
+    this.logger.log({useProxy})
+    if(useProxy){this.closeTunnel();}
   }
 
   private openTunnel() {
     // You should add these to your .env file
-    const proxyUser = this.configService.getOrThrow<string>('PROXY_USER');
-    const proxyHost = this.configService.getOrThrow<string>('PROXY_HOST');
+    const proxyUser = this.config.getOrThrow<string>('PROXY_USER');
+    const proxyHost = this.config.getOrThrow<string>('PROXY_HOST');
     // Optional: Path to private key if not in default ~/.ssh/id_rsa
-    const proxyKeyPath = this.configService.getOrThrow<string>('PROXY_KEY_PATH');
+    const proxyKeyPath = this.config.getOrThrow<string>('PROXY_KEY_PATH');
 
     this.logger.log(`Starting SSH Tunnel to ${proxyUser}@${proxyHost} on port ${this.localPort}...`);
-
+    
     // Command: ssh -D 1337 -q -C -N user@ip
     const args = [
       '-D',
