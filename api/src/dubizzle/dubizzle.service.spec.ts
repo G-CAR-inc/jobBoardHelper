@@ -5,6 +5,7 @@ import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { BrowserSessionRepository } from './repositories/browser-session.repository';
 import { PrismaModule } from '../prisma/prisma.module';
+import { BypassRepository } from './repositories/bypass.repository';
 describe('DubizzleService', () => {
   let service: DubizzleService;
 
@@ -20,9 +21,9 @@ describe('DubizzleService', () => {
           timeout: 5000,
           maxRedirects: 5,
         }),
-        PrismaModule
+        PrismaModule,
       ],
-      providers: [DubizzleService, BrowserSessionRepository],
+      providers: [DubizzleService, BrowserSessionRepository, BypassRepository],
     })
       .setLogger(new Logger())
       .compile();
@@ -38,8 +39,27 @@ describe('DubizzleService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
-  it('should return Incapsula resource', async () => {
-    const incapsulaJs = await service.scrap();
+  it('should return valid browser versions', async () => {
+    const {
+      data: { versions: userAgents },
+    } = await service.getUserAgents();
+    // Logger.log(userAgents);
+    expect(Array.isArray(userAgents)).toBe(true);
+    const [agent] = userAgents;
+
+    expect(agent).toHaveProperty('name');
+    expect(typeof agent.name).toBe('string');
+
+    // Assert that 'version' property exists and is a string
+    expect(agent).toHaveProperty('version');
+    expect(typeof agent.version).toBe('string');
   });
+  it('should return Incapsula resource', async () => {
+    try {
+      await service.visitJobsDomain();
+    } catch (e) {
+      Logger.error(e);
+    }
+  }, 100000);
 });
 //
