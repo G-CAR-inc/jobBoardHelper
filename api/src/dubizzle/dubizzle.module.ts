@@ -11,6 +11,7 @@ import { BypassRepository } from './repositories/bypass.repository';
       baseURL: 'https://jobs.dubizzle.com',
       timeout: 5000, // 5 seconds timeout
       maxRedirects: 5,
+      // proxy:{''}
       // You could also add default headers like Authorization here if needed
     }),
   ],
