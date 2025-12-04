@@ -15,9 +15,7 @@ export class DubizzleService implements OnModuleInit {
   constructor(private readonly httpService: HttpService) {}
 
   async onModuleInit() {
-
-    this.generateUtmvc()
-
+    this.generateUtmvc();
 
     return;
     this.logger.log('Starting initial login process...');
