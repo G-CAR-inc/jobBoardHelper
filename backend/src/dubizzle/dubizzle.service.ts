@@ -96,8 +96,9 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     access_token?: string;
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; // Optional: infer from body if missing
     referer?: string;
+    timeout?: number;
   }) {
-    const { url, headers: customHeaders = {}, body, access_token, method, referer } = props;
+    const { url, headers: customHeaders = {}, body, access_token, method, referer, timeout } = props;
     const cookieString = await this.getCookieString(url)!;
     // 1. Construct Default Headers
     const headers = {
@@ -113,7 +114,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const requestMethod = method || (body ? 'POST' : 'GET');
 
     try {
-      console.log(`fetching ${requestMethod} url:${url} ....\ncookies:${cookieString}`);
+      // console.log(`fetching ${requestMethod} url:${url} ....\ncookies:${cookieString}`);
+      this.logger.log(`fetching\t[${requestMethod}] url:${url}\ttimeout: ${timeout || 0}`);
       const response = await this.http.axiosRef.request({
         url,
         method: requestMethod,
@@ -126,6 +128,9 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       const setCookie = respHeaders['set-cookie'];
 
       await this.updateCookieJarWithCookieStrings(setCookie, url);
+      if (timeout) {
+        await sleep(timeout);
+      }
       return { data, setCookie, contentType, headers: respHeaders, status };
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -214,7 +219,10 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const dynamicReeseUrl = protocol + '//' + domain + dynamicReeseScriptPaths.scriptPath;
     const dynamicReeseSensor = await this.handleReeseSensor({ reeseUrl: dynamicReeseUrl, rootUrl, hyperSdkSession });
 
-    this.logger.log({ message: 'sensor solved', sensor: dynamicReeseSensor.slice(0, 100) });
+    this.logger.log({
+      message: 'reese sensor solved',
+      // sensor: dynamicReeseSensor.slice(0, 100)
+    });
 
     //send the soved captcha to dubizzle back
 
@@ -306,7 +314,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
       const { data: utmvcScript, contentType: utmvcScriptContentType } = await this.fetch({ url: utmvcScriptUrl, referer: rootUrl });
 
-      this.logger.log({ message: `[UTMVC SCRIPT]`, utmvcScriptUrl, utmvcScript: utmvcScript.slice(0, 100), utmvcScriptContentType, utmvcSubmitPath });
+      // this.logger.log({ message: `[UTMVC SCRIPT]`, utmvcScriptUrl, utmvcScript: utmvcScript.slice(0, 100), utmvcScriptContentType, utmvcSubmitPath });
 
       // //hypersdk
       const utmvcInput = new UtmvcInput(this.userAgent, utmvcScript, hyperSdkSessionIds);
@@ -314,7 +322,11 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       const { payload: utmvcCookie, swhanedl } = await generateUtmvcCookie(hyperSdkSession, utmvcInput);
       this.sdkUsage++;
 
-      this.logger.log({ message: `[UTMVC SCRIPT] generated [v]`, utmvcCookie: utmvcCookie, swhanedl });
+      this.logger.log({
+        message: `[UTMVC SCRIPT] generated [v]`,
+        // utmvcCookie: utmvcCookie,
+        //  swhanedl
+      });
       await this.setUtmvcCookie(utmvcCookie);
 
       //submit utmvc token
@@ -325,7 +337,12 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
         setCookie: utmvcSubmitSetCookie,
       } = await this.fetch({ url: utmvcSubmitUrl, referer: rootUrl });
 
-      this.logger.log({ message: `[UTMVC TOKEN] submited [v]`, utmvcSubmitResponse, utmvcSubmitContentType, utmvcSubmitSetCookie });
+      this.logger.log({
+        message: `[UTMVC TOKEN] submited [v]`,
+        //  utmvcSubmitResponse,
+        //   utmvcSubmitContentType,
+        //   utmvcSubmitSetCookie
+      });
     }
 
     //cookies
