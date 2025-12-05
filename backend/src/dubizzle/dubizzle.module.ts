@@ -11,8 +11,8 @@ import { DubizzleScrapperService } from './dubizzle-scrapper/dubizzle-scrapper.s
   imports: [
     HttpModule.register({
       baseURL: 'https://jobs.dubizzle.com',
-      timeout: 5000, // 5 seconds timeout
-      maxRedirects: 5,
+      // timeout: 10000, // 5 seconds timeout
+      // maxRedirects: 5,
     }),
   ],
   controllers: [DubizzleController],

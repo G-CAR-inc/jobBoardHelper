@@ -20,6 +20,19 @@ export class DubizzleScrapperService implements OnModuleInit {
     const url = `https://jobs.dubizzle.com/svc/ats/api/v1/listing?status=deleted%2Cexpired`;
     return this.dubizzle.fetch({ url });
   }
+  getVacancies(props: { status?: 'active' | 'expired'; page: number }) {
+    const { page, status } = props;
+    let statusQuery = status == 'active' && `live`;
+    if (!statusQuery) {
+      statusQuery = status == 'expired' && 'deleted%2Cexpired';
+    }
+    if (!statusQuery) {
+      statusQuery = 'live';
+    }
+    const referer: string = `https://jobs.dubizzle.com/ats/dashboard/?status=${status}&page=${page}`;
+    const url = `https://jobs.dubizzle.com/svc/ats/api/v1/listing?status=${statusQuery}&page=${page}`;
+    return this.dubizzle.fetch({ url, timeout: this.random(), referer });
+  }
   getApplies(props: { vacancyIds: string[] }) {
     const { vacancyIds } = props;
 
@@ -31,8 +44,22 @@ export class DubizzleScrapperService implements OnModuleInit {
     );
   }
   async scrap() {
-    const { data: vacancies } = await this.getExpiredVacancies();
-    vacancies.results = vacancies.results.length;
-    return vacancies;
+    let page = 1;
+    const { data: vacancies } = await this.getVacancies({ status: 'expired', page });
+    // vacancies.results = vacancies.results.length;
+    const arr: any[] = [];
+    let next: string | null = vacancies.next;
+    do {
+      try {
+        const { data: vacancies } = await this.getVacancies({ page, status: 'expired' });
+
+        const { results, next: nextUrl } = vacancies;
+        arr.push(...results);
+        this.logger.warn({ nextUrl });
+        next = nextUrl;
+        page++;
+      } catch (e) {}
+    } while (next);
+    return arr;
   }
 }

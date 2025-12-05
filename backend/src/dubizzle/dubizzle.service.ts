@@ -134,6 +134,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       return { data, setCookie, contentType, headers: respHeaders, status };
     } catch (error) {
       if (axios.isAxiosError(error)) {
+        this.logger.error(error.response)
         this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error.message}`);
       } else {
         this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error}`);
@@ -441,7 +442,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     if (!forceLoadSession) {
       await this.loadLatestModuleState();
     }
-    
+
     // this.logger.log(await this.getCookieString(rootUrl));
     await this.bypassIncapsula({ rootUrl });
 
