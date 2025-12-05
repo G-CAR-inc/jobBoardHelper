@@ -22,6 +22,7 @@ export class BypassRepository {
         sdkUsage: dto.sdkUsage,
         refreshToken: dto.refreshToken,
         accessToken: dto.accessToken,
+        userEmail: dto.userEmail,
       },
     });
   }
@@ -45,11 +46,12 @@ export class BypassRepository {
       },
     });
   }
-  getLatestSessionByIp(ip: string) {
-    Logger.log(`selecting last session for ip: ${ip}`);
+  getLatestSessionByIpAndEmail(props: { ip: string; email: string }) {
+    const { ip, email } = props;
+    Logger.log(`selecting last session for ip: ${ip} and email: ${email}`);
     try {
       return this.prisma.session.findFirst({
-        where: { publicIp: ip },
+        where: { publicIp: ip, userEmail: email },
         orderBy: { createdAt: 'desc' },
         include: {
           cookies: true,

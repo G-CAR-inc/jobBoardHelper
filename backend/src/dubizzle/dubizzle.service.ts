@@ -38,6 +38,9 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   private accept: string;
 
   private ip: string;
+  private email: string;
+  private password: string;
+
   private sdkUsage: number = 0;
 
   public cookieJar = new CookieJar();
@@ -66,6 +69,11 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     this.ip = ip;
 
+    const email = this.config.getOrThrow<string>('DUBIZZLE_EMAIL');
+    const password = this.config.getOrThrow<string>('DUBIZZLE_PASSWORD');
+
+    this.email = email;
+    this.password = password;
     const { success } = await this.loadLatestModuleState();
     this.logger.log(`module latest stating loading up status: ${success}`);
     if (success) {
@@ -349,13 +357,11 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     await this.bypassIncapsula({ rootUrl });
     await sleep(10);
 
-    const email = this.config.getOrThrow<string>('DUBIZZLE_EMAIL');
-    const password = this.config.getOrThrow<string>('DUBIZZLE_PASSWORD');
-
-    const authResp = await this.sendAuthRequest({ email, password });
+    const authResp = await this.sendAuthRequest({ email: this.email, password: this.password });
 
     const { dbz_ref_id } = authResp as { dbz_ref_id: string };
 
+    await sleep(5);
     const emptyTokens = (await this.sendAuthRequest(null)) as { access_token: string; refresh_token: string };
 
     this.access_token = emptyTokens.access_token;
@@ -424,9 +430,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   }
 
   //to decorate
-  async scrap(){
-
-  }
+  async scrap() {}
   /**
    * Helper: Stores an array of Set-Cookie strings into the jar.
    * tough-cookie validates the domain, so we must provide the 'currentUrl'.
@@ -555,6 +559,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       sdkUsage: this.sdkUsage,
       accessToken: localStorage.access_token,
       refreshToken: localStorage.refresh_token,
+      userEmail: this.email,
     });
     const { id: sessionId } = session;
 
@@ -581,7 +586,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   async loadLatestModuleState() {
     // const session = await this.bypassRepo.getLatestSession();
 
-    const session = await this.bypassRepo.getLatestSessionByIp(this.ip);
+    const session = await this.bypassRepo.getLatestSessionByIpAndEmail({ ip: this.ip, email: this.email });
 
     if (!session) {
       return { success: false };
@@ -616,7 +621,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const url = `https://jobs.dubizzle.com/svc/ats/api/v1/listing?status=live`;
     return this.fetch({ url, access_token, method: 'GET' });
   }
-  getApplies(props: { vacancyIds: string[]; }) {
+  getApplies(props: { vacancyIds: string[] }) {
     const { vacancyIds } = props;
 
     return Promise.all(
