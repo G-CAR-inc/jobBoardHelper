@@ -24,7 +24,7 @@ export interface JobListing {
 export interface JobData {
   gender: string;
   salary: string;
-  benefits: string[];
+  benefits?: string[];
   industry: string;
   language: string[];
   location: Location;
