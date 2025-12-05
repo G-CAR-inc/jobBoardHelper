@@ -13,8 +13,6 @@ import { DubizzleScrapperService } from './dubizzle-scrapper/dubizzle-scrapper.s
       baseURL: 'https://jobs.dubizzle.com',
       timeout: 5000, // 5 seconds timeout
       maxRedirects: 5,
-      // proxy:{''}
-      // You could also add default headers like Authorization here if needed
     }),
   ],
   controllers: [DubizzleController],
