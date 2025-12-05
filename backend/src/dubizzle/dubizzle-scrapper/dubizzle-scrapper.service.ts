@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { DubizzleService } from '../dubizzle.service';
 import { normalDistribution } from '../../utils/shared/srared.utils';
+import { JobListing, VacancyResponce } from '../types';
 
 @Injectable()
 export class DubizzleScrapperService implements OnModuleInit {
@@ -45,13 +46,13 @@ export class DubizzleScrapperService implements OnModuleInit {
   }
   async scrap() {
     let page = 1;
-    const { data: vacancies } = await this.getVacancies({ status: 'expired', page });
+    const { data: vacancies } = (await this.getVacancies({ status: 'expired', page })) as { data: VacancyResponce };
     // vacancies.results = vacancies.results.length;
-    const arr: any[] = [];
+    const arr: JobListing[] = [];
     let next: string | null = vacancies.next;
     do {
       try {
-        const { data: vacancies } = await this.getVacancies({ page, status: 'expired' });
+        const { data: vacancies } = (await this.getVacancies({ page, status: 'expired' })) as { data: VacancyResponce };
 
         const { results, next: nextUrl } = vacancies;
         arr.push(...results);
