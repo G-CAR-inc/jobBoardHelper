@@ -268,11 +268,12 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     this.logger.log({
       message: 'bypass config',
+      email: this.email,
     });
 
     //1 GET INDEX.HTML
     let { data: indexHtml } = await this.fetch({ url: rootUrl });
-    this.logger.log({ indexHtml: indexHtml.slice(0, 500) });
+    // this.logger.log({ indexHtml: indexHtml.slice(0, 500) });
 
     let ifDynamicReesePresent: boolean = false;
     try {
@@ -391,7 +392,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     this.access_token = emptyTokens.access_token;
     this.refresh_token = emptyTokens.refresh_token;
 
-    this.logger.log({ emptyTokens, authResp });
+    // this.logger.log({ emptyTokens, authResp });
 
     // await this.requestMagicLink({ dbz_ref_id });
 
@@ -440,7 +441,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     if (!forceLoadSession) {
       await this.loadLatestModuleState();
     }
-    this.logger.log(await this.getCookieString(rootUrl));
+    
+    // this.logger.log(await this.getCookieString(rootUrl));
     await this.bypassIncapsula({ rootUrl });
 
     const tokens = (await this.sendAuthRequest(null)) as { access_token: string; refresh_token: string };
