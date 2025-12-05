@@ -17,18 +17,18 @@ services:
       timeout: 5s
       retries: 5
 
-  api:
-    build: "./api"
-    container_name: jobboard-api
+  backend:
+    build: "./backend"
+    container_name: jobboard-backend
     # Key Fix: Restart ensures the app retries if migration fails on 1st attempt
-    restart: on-failure 
+    restart: on-failure
     depends_on:
       postgres:
         condition: service_healthy # Waits for the explicit healthcheck above
     ports:
       - "3000:3000"
     env_file:
-      - ./api/.env
+      - ./backend/.env
 
 volumes:
   postgres_data:

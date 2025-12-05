@@ -26,6 +26,8 @@ model Session {
   accessToken String @map("access_token")
   refreshToken String @map("refresh_token")
 
+  userEmail String? @map("user_email")
+
   // 1:m Relations
   cookies Cookie[]
 
