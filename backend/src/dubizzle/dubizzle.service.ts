@@ -76,13 +76,20 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     this.password = password;
     const { success } = await this.loadLatestModuleState();
     this.logger.log(`module latest stating loading up status: ${success}`);
-    if (success) {
-      const { remains, result } = await this.checkIfReeseValid();
-      this.logger.log(`last reese84 token state: remains: ${remains}, isActive: ${result}`);
+    if (!success) {
+      this.logger.warn(
+        `There is no initial session to prolong. Magic link passing required. Pleace request \n\n [GET] /dubizzle/magic-link then [POST] /dubizzle/magic-link\n\n`,
+      );
+    }
+    const { remains, result } = await this.checkIfReeseValid();
+    this.logger.log(`last reese84 token state: remains: ${remains}, isActive: ${result}`);
+    if (!result) {
+      this.logger.log('refreshing session by visiting jobs domain');
+      await this.visitJobsDomain();
     }
   }
 
-  private async fetch(props: {
+  public async fetch(props: {
     url: string;
     headers?: Record<string, string>;
     body?: any;
@@ -411,10 +418,11 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     await this.saveModuleState();
   }
   // to decorate
-  async visitJobsDomain() {
+  async visitJobsDomain(forceLoadSession?: boolean) {
     const rootUrl = 'https://jobs.dubizzle.com/';
-    await this.loadLatestModuleState();
-
+    if (!forceLoadSession) {
+      await this.loadLatestModuleState();
+    }
     this.logger.log(await this.getCookieString(rootUrl));
     await this.bypassIncapsula({ rootUrl });
 
@@ -615,20 +623,5 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     await this.setModuleState({ cookies, localStorage: { access_token: session?.accessToken!, refresh_token: session?.refreshToken! } });
     return { success: true };
-  }
-
-  getVacancies({ cookieString, access_token }: { cookieString: string; access_token: string }) {
-    const url = `https://jobs.dubizzle.com/svc/ats/api/v1/listing?status=live`;
-    return this.fetch({ url, access_token, method: 'GET' });
-  }
-  getApplies(props: { vacancyIds: string[] }) {
-    const { vacancyIds } = props;
-
-    return Promise.all(
-      vacancyIds.map((vacancyId) => {
-        const url = `https://jobs.dubizzle.com/svc/ats/api/v4/application?job_listing=${vacancyId}&is_in_pipeline=1&sort_by=created_at`;
-        return this.fetch({ url, method: 'GET' });
-      }),
-    );
   }
 }
