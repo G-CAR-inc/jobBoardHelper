@@ -75,9 +75,9 @@ export class DubizzleScrapperService implements OnModuleInit {
 
         const { results, next: nextUrl } = applications;
         jobListings.push(...results);
-        this.logger.warn({ nextUrl });
+        this.logger.warn({ message:`[APPLICATION] page:${page} has been successfully fetched`,nextUrl });
         next = nextUrl;
-        if (page == 2) return jobListings;
+        // if (page == 2) return jobListings;
         page++;
       } catch (e: unknown) {
         this.logger.error(`Error while fetching aplications:${(e as AxiosError).message}`);
