@@ -80,6 +80,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn(
         `There is no initial session to prolong. Magic link passing required. Pleace request \n\n [GET] /dubizzle/magic-link then [POST] /dubizzle/magic-link\n\n`,
       );
+      return;
     }
     const { remains, result } = await this.checkIfReeseValid();
     this.logger.log(`last reese84 token state: remains: ${remains}, isActive: ${result}`);
@@ -134,7 +135,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       return { data, setCookie, contentType, headers: respHeaders, status };
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        this.logger.error(error.response)
+        this.logger.error(error.response);
         this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error.message}`);
       } else {
         this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error}`);

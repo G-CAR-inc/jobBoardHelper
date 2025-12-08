@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { DubizzleService } from '../dubizzle.service';
+// import { DubizzleService } from '../dubizzle.service';
 import { DubizzleScrapperService } from '../dubizzle-scrapper/dubizzle-scrapper.service';
 import { normalDistribution } from '../../utils/shared/srared.utils';
 
@@ -10,7 +10,7 @@ export class DubizzleSchedulerService {
   private random = normalDistribution(5, 1.2);
 
   constructor(
-    private readonly dubizzleService: DubizzleService,
+    // private readonly dubizzleService: DubizzleService,
     private readonly dubizzleScraper: DubizzleScrapperService,
   ) {}
 
