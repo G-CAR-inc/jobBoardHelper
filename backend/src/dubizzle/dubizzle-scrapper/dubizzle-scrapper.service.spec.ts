@@ -4,6 +4,10 @@ import { Logger } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { DubizzleModule } from '../dubizzle.module';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { DubizzleService } from '../dubizzle.service';
+import { ScrappingRepository } from '../repositories/scrapping.repository';
+import { HttpModule } from '@nestjs/axios';
+import { BypassRepository } from '../repositories/bypass.repository';
 
 describe('DubizzleScrapperService', () => {
   let service: DubizzleScrapperService;
@@ -14,14 +18,20 @@ describe('DubizzleScrapperService', () => {
       imports: [
         // Loads .env variables globally so DubizzleService can access them
         ConfigModule.forRoot({ isGlobal: true }),
+        HttpModule.register({
+          baseURL: 'https://jobs.dubizzle.com',
+          timeout: 5000,
+          maxRedirects: 5,
+        }),
         // Required for database sessions used by the scraper
         PrismaModule,
-        // Provides the fully configured DubizzleService
-        DubizzleModule,
       ],
       providers: [
         // The service we are actually testing
         DubizzleScrapperService,
+        DubizzleService,
+        BypassRepository,
+        ScrappingRepository,
       ],
     })
       .setLogger(new Logger())
@@ -33,10 +43,10 @@ describe('DubizzleScrapperService', () => {
     await module.init();
   });
 
-  afterEach(async () => {
-    // Clean up connections after the test
-    await module.close();
-  });
+  // afterEach(async () => {
+  //   // Clean up connections after the test
+  //   await module.close();
+  // });
 
   // Increased timeout to 60 seconds (60000ms) for real network requests
   it('should run the scraping process', async () => {
@@ -48,5 +58,5 @@ describe('DubizzleScrapperService', () => {
       Logger.error('Scraping failed', error);
       throw error;
     }
-  }, 60000);
+  }, 300000);
 });
