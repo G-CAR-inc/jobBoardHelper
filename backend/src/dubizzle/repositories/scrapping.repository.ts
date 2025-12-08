@@ -124,7 +124,6 @@ export class ScrappingRepository {
     });
     return job?.lastApplicationDate || null;
   }
-
   /**
    * Updates the high-water mark for application dates.
    */
@@ -136,6 +135,38 @@ export class ScrappingRepository {
       });
     } catch (error) {
       this.logger.error(`Failed to update lastApplicationDate for job ${jobId}`, error);
+    }
+  }
+  async getLiveJobs() {
+    return this.prisma.jobListing.findMany({
+      where: { status: 'live' },
+      select: { id: true },
+    });
+  }
+  async getLiveJobIds(): Promise<string[]> {
+    const jobs = await this.prisma.jobListing.findMany({
+      where: { status: 'live' },
+      select: { id: true },
+    });
+    return jobs.map((j) => j.id);
+  }
+  /**
+   * Bulk updates the status of the provided job IDs to 'expired'.
+   */
+  async expireJobs(jobIds: string[]) {
+    if (jobIds.length === 0) return;
+
+    this.logger.log(`Marking ${jobIds.length} jobs as expired in DB...`);
+    try {
+      await this.prisma.jobListing.updateMany({
+        where: { id: { in: jobIds } },
+        data: {
+          status: 'expired',
+          updatedAt: new Date(),
+        },
+      });
+    } catch (error) {
+      this.logger.error('Failed to bulk expire jobs', error);
     }
   }
 }
