@@ -239,7 +239,7 @@ export class DubizzleScrapperService implements OnModuleInit {
   async scrapeWithRandDelay(min?: number, sec?: number) {
     const timeout = Math.floor(Math.random() * (min || 5) * 60) + (sec || 15);
     this.logger.log(`[TIMEOUT] sleeping for ${timeout} sec`);
-    await sleep(timeout);
+    // await sleep(timeout);
     await this.scrape();
   }
 }

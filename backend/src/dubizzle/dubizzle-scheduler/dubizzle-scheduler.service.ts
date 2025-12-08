@@ -28,7 +28,7 @@ export class DubizzleSchedulerService {
   //   }
   // }
   @Cron(
-    '0 6-20/2 * * *',
+    '55 6-20/2 * * *',
     //   {
     //   timeZone: 'Asia/Dubai',
     // }

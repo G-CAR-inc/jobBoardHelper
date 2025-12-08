@@ -23,7 +23,7 @@ export class ScrappingRepository {
           status: job.status,
           updatedAt: new Date(),
           // Update volatile fields
-          applicationCounts: undefined, // If you added this to schema
+          // applicationCounts: undefined, // If you added this to schema
         },
         create: {
           id: job.id,
@@ -83,6 +83,7 @@ export class ScrappingRepository {
           cvUrl: profile.cv_url,
           visaStatus: profile.visa_status?.value,
           photoUrl: applicantData.photo_url,
+          age: applicantData.age,
         },
       });
 
