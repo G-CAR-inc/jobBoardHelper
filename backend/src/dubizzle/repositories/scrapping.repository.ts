@@ -67,6 +67,7 @@ export class ScrappingRepository {
           cvUrl: profile.cv_url,
           visaStatus: profile.visa_status?.value,
           updatedAt: new Date(),
+          age: applicantData.age,
         },
         create: {
           id: applicantData.id,
@@ -96,16 +97,12 @@ export class ScrappingRepository {
           },
         },
         update: {
-          isRejected: application.is_rejected,
-          isViewed: application.is_viewed,
           relevancyScore: application.relevancy_score,
         },
         create: {
           id: application.id,
           jobId: jobId,
           applicantId: applicantData.id,
-          isRejected: application.is_rejected,
-          isViewed: application.is_viewed,
           relevancyScore: application.relevancy_score,
           appliedAt: new Date(application.created_at),
         },

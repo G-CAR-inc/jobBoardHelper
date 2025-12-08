@@ -6,24 +6,14 @@ datasource db {
   provider = "postgresql"
 }
 
-model BrowserSession {
-  id             String   @id @default(uuid())
-  domain         String
-  cookies        Json
-  localStorage   Json
-  sessionStorage Json
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-}
-
 model Session {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now()) @map("created_at")
 
-  publicIp       String @map("public_ip")
-  sdkUsage       Int    @map("sdk_usage")
+  publicIp String @map("public_ip")
+  sdkUsage Int    @map("sdk_usage")
 
-  accessToken String @map("access_token")
+  accessToken  String @map("access_token")
   refreshToken String @map("refresh_token")
 
   userEmail String? @map("user_email")
@@ -35,13 +25,13 @@ model Session {
 }
 
 model Cookie {
-  id       String  @id @default(uuid())
+  id       String   @id @default(uuid())
   key      String
   domain   String
-  path     String  @default("/")
-  secure   Boolean @default(true)
-  httpOnly Boolean @default(true) @map("http_only")
-  maxAge   Int?    @map("max_age") 
+  path     String   @default("/")
+  secure   Boolean  @default(true)
+  httpOnly Boolean  @default(true) @map("http_only")
+  maxAge   Int?     @map("max_age")
   creation DateTime
   value    String
 
@@ -52,30 +42,28 @@ model Cookie {
   @@map("cookies")
 }
 
-
-
 model JobListing {
-  id          String   @id // Dubizzle UUID
-  legacyId    Int?     @map("legacy_id")
+  id          String  @id // Dubizzle UUID
+  legacyId    Int?    @map("legacy_id")
   name        String
   description String?
-  companyName String?  @map("company_name")
+  companyName String? @map("company_name")
   status      String
-  
+
   // Normalized Data Fields
-  salary          String?
-  location        String?
-  industry        String?
-  employmentType  String?  @map("employment_type")
-  educationLevel  String?  @map("education_level")
-  workExperience  String?  @map("work_experience")
-  
+  salary         String?
+  location       String?
+  industry       String?
+  employmentType String? @map("employment_type")
+  educationLevel String? @map("education_level")
+  workExperience String? @map("work_experience")
+
   lastApplicationDate DateTime? @map("last_application_date")
 
-  postedAt    DateTime @map("posted_at")
-  expiresAt   DateTime @map("expires_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  postedAt  DateTime @map("posted_at")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   applications JobApplication[]
 
@@ -83,51 +71,48 @@ model JobListing {
 }
 
 model Applicant {
-  id             String  @id // Dubizzle Applicant ID
-  firstName      String  @map("first_name")
-  lastName       String  @map("last_name")
-  email          String? 
-  phone          String?
-  age       Int?  
-  
+  id        String  @id // Dubizzle Applicant ID
+  firstName String  @map("first_name")
+  lastName  String  @map("last_name")
+  email     String?
+  phone     String?
+  age       Int?
+
   // Profile Details
-  nationality    String?
-  currentPosition String? @map("current_position")
-  currentCompany  String? @map("current_company")
-  educationLevel  String? @map("education_level")
-  totalExperience String? @map("total_experience")
+  nationality       String?
+  currentPosition   String? @map("current_position")
+  currentCompany    String? @map("current_company")
+  educationLevel    String? @map("education_level")
+  totalExperience   String? @map("total_experience")
   salaryExpectation String? @map("salary_expectation")
-  visaStatus     String? @map("visa_status")
-  
-  cvUrl          String? @map("cv_url")
-  photoUrl       String? @map("photo_url")
+  visaStatus        String? @map("visa_status")
 
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  cvUrl    String? @map("cv_url")
+  photoUrl String? @map("photo_url")
 
-  applications   JobApplication[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@map("applicants")
+  applications JobApplication[]
   // Optional: Unique index on email if IDs aren't consistent, 
   // but usually Dubizzle IDs are safer for external refs
+
+  @@map("applicants")
 }
 
 model JobApplication {
-  id             String   @id // Dubizzle Application ID
-  
-  jobId          String   @map("job_id")
-  job            JobListing @relation(fields: [jobId], references: [id])
+  id String @id // Dubizzle Application ID
 
-  applicantId    String   @map("applicant_id")
-  applicant      Applicant @relation(fields: [applicantId], references: [id])
+  jobId String     @map("job_id")
+  job   JobListing @relation(fields: [jobId], references: [id])
 
-  // Application Meta
-  isRejected     Boolean  @default(false) @map("is_rejected")
-  isViewed       Boolean  @default(false) @map("is_viewed")
-  relevancyScore Float?   @map("relevancy_score")
-  
-  appliedAt      DateTime @map("applied_at") // The created_at from source
-  dbCreatedAt    DateTime @default(now()) @map("db_created_at")
+  applicantId String    @map("applicant_id")
+  applicant   Applicant @relation(fields: [applicantId], references: [id])
+
+  relevancyScore Float? @map("relevancy_score")
+
+  appliedAt   DateTime @map("applied_at") // The created_at from source
+  dbCreatedAt DateTime @default(now()) @map("db_created_at")
 
   @@unique([jobId, applicantId]) // Prevent duplicate applications
   @@map("job_applications")

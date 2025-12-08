@@ -151,7 +151,7 @@ export class DubizzleScrapperService implements OnModuleInit {
    * 4) Updates missing jobs to 'expired' in DB.
    * 5) Returns IDs of these newly expired jobs.
    */
-  private async jobHealthCheck(): Promise<string[]> {
+  private async syncJobListings(): Promise<string[]> {
     this.logger.log('--- STARTING JOB HEALTH CHECK ---');
 
     // 1. Get Live Jobs from API
@@ -188,7 +188,7 @@ export class DubizzleScrapperService implements OnModuleInit {
    * 1) Selects jobs to process: All 'live' jobs from DB + optional extra IDs (e.g., just expired ones).
    * 2) Fetches applications for these jobs (optimized).
    */
-  private async processAndSaveNewJobApplications(optionalJobIds: string[] = []) {
+  private async syncJobApplications(optionalJobIds: string[] = []) {
     this.logger.log(`--- STARTING APPLICATION SYNC (Extra IDs: ${optionalJobIds.length}) ---`);
 
     // 1. Get currently Live jobs from DB
@@ -201,7 +201,8 @@ export class DubizzleScrapperService implements OnModuleInit {
 
     for (const jobId of jobsToProcess) {
       // 1. Get last sync date
-      const lastAppDate = await this.repo.getLastApplicationDate(jobId);
+      // const lastAppDate = await this.repo.getLastApplicationDate(jobId);
+      const lastAppDate = null;
 
       // 2. Fetch new applications only
       const applications = await this.getAllApplications(jobId, lastAppDate);
@@ -231,8 +232,8 @@ export class DubizzleScrapperService implements OnModuleInit {
   }
 
   async start() {
-    const expiredJobIds = await this.jobHealthCheck();
+    const expiredJobIds = await this.syncJobListings();
 
-    await this.processAndSaveNewJobApplications(expiredJobIds);
+    await this.syncJobApplications(expiredJobIds);
   }
 }
