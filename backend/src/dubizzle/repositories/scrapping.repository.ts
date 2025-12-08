@@ -114,4 +114,28 @@ export class ScrappingRepository {
       // We don't throw here to allow other applications in the loop to proceed
     }
   }
+  /**
+   * Retrieves the date of the most recent application processed for a job.
+   */
+  async getLastApplicationDate(jobId: string): Promise<Date | null> {
+    const job = await this.prisma.jobListing.findUnique({
+      where: { id: jobId },
+      select: { lastApplicationDate: true },
+    });
+    return job?.lastApplicationDate || null;
+  }
+
+  /**
+   * Updates the high-water mark for application dates.
+   */
+  async updateJobLastApplicationDate(jobId: string, date: Date) {
+    try {
+      await this.prisma.jobListing.update({
+        where: { id: jobId },
+        data: { lastApplicationDate: date },
+      });
+    } catch (error) {
+      this.logger.error(`Failed to update lastApplicationDate for job ${jobId}`, error);
+    }
+  }
 }

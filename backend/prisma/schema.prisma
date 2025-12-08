@@ -70,6 +70,8 @@ model JobListing {
   educationLevel  String?  @map("education_level")
   workExperience  String?  @map("work_experience")
   
+lastApplicationDate DateTime? @map("last_application_date")
+
   postedAt    DateTime @map("posted_at")
   expiresAt   DateTime @map("expires_at")
   createdAt   DateTime @default(now()) @map("created_at")
