@@ -19,7 +19,7 @@ export class DubizzleScrapperService implements OnModuleInit {
     this.random = normalDistribution(mu, sigma);
   }
 
-  getVacancies(props: { status?: 'active' | 'expired'; page: number }) {
+  private getVacancies(props: { status?: 'active' | 'expired'; page: number }) {
     const { page, status } = props;
     let statusQuery = status == 'active' && `live`;
     if (!statusQuery) {
@@ -32,7 +32,7 @@ export class DubizzleScrapperService implements OnModuleInit {
     const url = `https://jobs.dubizzle.com/svc/ats/api/v1/listing?status=${statusQuery}&page=${page}`;
     return this.dubizzle.fetch({ url, timeout: this.random(), referer }) as Promise<{ data: JobListingResponce }>;
   }
-  getApplications(props: { page: number; jobId: string }) {
+  private getApplications(props: { page: number; jobId: string }) {
     const { page, jobId } = props;
     const status = 'live';
 
@@ -61,7 +61,7 @@ export class DubizzleScrapperService implements OnModuleInit {
     } while (next);
     return jobListings;
   }
-  async getAllApplications(jobId: string, stopDate?: Date | null) {
+  private async getAllApplications(jobId: string, stopDate?: Date | null) {
     this.logger.log(`fetching applications for job:${jobId} (Newer than: ${stopDate?.toISOString() ?? 'ALL'})`);
     let page = 1;
     const applicationsList: JobApplication[] = [];
@@ -151,7 +151,7 @@ export class DubizzleScrapperService implements OnModuleInit {
    * 4) Updates missing jobs to 'expired' in DB.
    * 5) Returns IDs of these newly expired jobs.
    */
-  async jobHealthCheck(): Promise<string[]> {
+  private async jobHealthCheck(): Promise<string[]> {
     this.logger.log('--- STARTING JOB HEALTH CHECK ---');
 
     // 1. Get Live Jobs from API
@@ -188,7 +188,7 @@ export class DubizzleScrapperService implements OnModuleInit {
    * 1) Selects jobs to process: All 'live' jobs from DB + optional extra IDs (e.g., just expired ones).
    * 2) Fetches applications for these jobs (optimized).
    */
-  async processAndSaveNewJobApplications(optionalJobIds: string[] = []) {
+  private async processAndSaveNewJobApplications(optionalJobIds: string[] = []) {
     this.logger.log(`--- STARTING APPLICATION SYNC (Extra IDs: ${optionalJobIds.length}) ---`);
 
     // 1. Get currently Live jobs from DB
@@ -230,16 +230,9 @@ export class DubizzleScrapperService implements OnModuleInit {
     this.logger.log('--- APPLICATION SYNC COMPLETE ---');
   }
 
-  async scrape() {
+  async start() {
     const expiredJobIds = await this.jobHealthCheck();
 
     await this.processAndSaveNewJobApplications(expiredJobIds);
-  }
-
-  async scrapeWithRandDelay(min?: number, sec?: number) {
-    const timeout = Math.floor(Math.random() * (min || 5) * 60) + (sec || 15);
-    this.logger.log(`[TIMEOUT] sleeping for ${timeout} sec`);
-    // await sleep(timeout);
-    await this.scrape();
   }
 }

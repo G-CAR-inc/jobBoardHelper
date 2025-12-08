@@ -41,6 +41,6 @@ export const normalDistribution = (mu: number, sigma: number) => {
         r = x * x + y * y;
       } while (!r || r > 1);
 
-    return mu + sigma * y * Math.sqrt((-2 * Math.log(r)) / r);
+    return Math.max(mu + sigma * y * Math.sqrt((-2 * Math.log(r)) / r), 0);
   };
 };

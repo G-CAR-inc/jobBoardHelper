@@ -2,10 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { DubizzleService } from '../dubizzle.service';
 import { DubizzleScrapperService } from '../dubizzle-scrapper/dubizzle-scrapper.service';
+import { normalDistribution } from '../../utils/shared/srared.utils';
 
 @Injectable()
 export class DubizzleSchedulerService {
   private readonly logger = new Logger(DubizzleSchedulerService.name);
+  private random = normalDistribution(5, 1.2);
 
   constructor(
     private readonly dubizzleService: DubizzleService,
@@ -34,12 +36,14 @@ export class DubizzleSchedulerService {
     // }
   )
   async handleScheduledScraping() {
-    this.logger.log(' [CRON] Starting scheduled job: scrapeWithRandDelay');
+    this.logger.log(' [CRON] Starting scheduled job: dubizzleScraper.start()');
     try {
-      await this.dubizzleScraper.scrapeWithRandDelay();
-      this.logger.log(' [CRON] Completed scheduled job: scrapeWithRandDelay');
+      const timeout = Math.floor(this.random() * 60) + 15;
+      this.logger.log(`[TIMEOUT] sleeping for ${timeout} sec`);
+      await this.dubizzleScraper.start();
+      this.logger.log(' [CRON] Completed scheduled job: dubizzleScraper.start()');
     } catch (error) {
-      this.logger.error(' [CRON] Failed to run scheduled job scrapeWithRandDelay', error);
+      this.logger.error(' [CRON] Failed to run scheduled job: dubizzleScraper.start()', error);
     }
   }
 }
