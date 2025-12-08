@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { DubizzleService } from '../dubizzle.service';
-import { normalDistribution } from '../../utils/shared/srared.utils';
+import { normalDistribution, sleep } from '../../utils/shared/srared.utils';
 import { ApplicationResponce, JobApplication, JobListing, JobListingResponce } from '../types';
 import { AxiosError } from 'axios';
 import { ScrappingRepository } from '../repositories/scrapping.repository';
@@ -234,5 +234,12 @@ export class DubizzleScrapperService implements OnModuleInit {
     const expiredJobIds = await this.jobHealthCheck();
 
     await this.processAndSaveNewJobApplications(expiredJobIds);
+  }
+
+  async scrapeWithRandDelay(min?: number, sec?: number) {
+    const timeout = Math.floor(Math.random() * (min || 5) * 60) + (sec || 15);
+    this.logger.log(`[TIMEOUT] sleeping for ${timeout} sec`);
+    await sleep(timeout);
+    await this.scrape();
   }
 }
