@@ -38,6 +38,9 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   private accept: string;
 
   private ip: string;
+  private email: string;
+  private password: string;
+
   private sdkUsage: number = 0;
 
   public cookieJar = new CookieJar();
@@ -66,23 +69,36 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     this.ip = ip;
 
+    const email = this.config.getOrThrow<string>('DUBIZZLE_EMAIL');
+    const password = this.config.getOrThrow<string>('DUBIZZLE_PASSWORD');
+
+    this.email = email;
+    this.password = password;
     const { success } = await this.loadLatestModuleState();
     this.logger.log(`module latest stating loading up status: ${success}`);
-    if (success) {
-      const { remains, result } = await this.checkIfReeseValid();
-      this.logger.log(`last reese84 token state: remains: ${remains}, isActive: ${result}`);
+    if (!success) {
+      this.logger.warn(
+        `There is no initial session to prolong. Magic link passing required. Pleace request \n\n [GET] /dubizzle/magic-link then [POST] /dubizzle/magic-link\n\n`,
+      );
+    }
+    const { remains, result } = await this.checkIfReeseValid();
+    this.logger.log(`last reese84 token state: remains: ${remains}, isActive: ${result}`);
+    if (!result) {
+      this.logger.log('refreshing session by visiting jobs domain');
+      await this.visitJobsDomain();
     }
   }
 
-  private async fetch(props: {
+  public async fetch(props: {
     url: string;
     headers?: Record<string, string>;
     body?: any;
     access_token?: string;
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; // Optional: infer from body if missing
     referer?: string;
+    timeout?: number;
   }) {
-    const { url, headers: customHeaders = {}, body, access_token, method, referer } = props;
+    const { url, headers: customHeaders = {}, body, access_token, method, referer, timeout } = props;
     const cookieString = await this.getCookieString(url)!;
     // 1. Construct Default Headers
     const headers = {
@@ -98,7 +114,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const requestMethod = method || (body ? 'POST' : 'GET');
 
     try {
-      console.log(`fetching ${requestMethod} url:${url} ....\ncookies:${cookieString}`);
+      // console.log(`fetching ${requestMethod} url:${url} ....\ncookies:${cookieString}`);
+      this.logger.log(`fetching\t[${requestMethod}] url:${url}\ttimeout: ${timeout || 0}`);
       const response = await this.http.axiosRef.request({
         url,
         method: requestMethod,
@@ -111,9 +128,13 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       const setCookie = respHeaders['set-cookie'];
 
       await this.updateCookieJarWithCookieStrings(setCookie, url);
+      if (timeout) {
+        await sleep(timeout);
+      }
       return { data, setCookie, contentType, headers: respHeaders, status };
     } catch (error) {
       if (axios.isAxiosError(error)) {
+        this.logger.error(error.response)
         this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error.message}`);
       } else {
         this.logger.error(`Fetch error [${requestMethod} ${url}]: ${error}`);
@@ -199,7 +220,10 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     const dynamicReeseUrl = protocol + '//' + domain + dynamicReeseScriptPaths.scriptPath;
     const dynamicReeseSensor = await this.handleReeseSensor({ reeseUrl: dynamicReeseUrl, rootUrl, hyperSdkSession });
 
-    this.logger.log({ message: 'sensor solved', sensor: dynamicReeseSensor.slice(0, 100) });
+    this.logger.log({
+      message: 'reese sensor solved',
+      // sensor: dynamicReeseSensor.slice(0, 100)
+    });
 
     //send the soved captcha to dubizzle back
 
@@ -245,11 +269,12 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     this.logger.log({
       message: 'bypass config',
+      email: this.email,
     });
 
     //1 GET INDEX.HTML
     let { data: indexHtml } = await this.fetch({ url: rootUrl });
-    this.logger.log({ indexHtml: indexHtml.slice(0, 500) });
+    // this.logger.log({ indexHtml: indexHtml.slice(0, 500) });
 
     let ifDynamicReesePresent: boolean = false;
     try {
@@ -291,7 +316,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
       const { data: utmvcScript, contentType: utmvcScriptContentType } = await this.fetch({ url: utmvcScriptUrl, referer: rootUrl });
 
-      this.logger.log({ message: `[UTMVC SCRIPT]`, utmvcScriptUrl, utmvcScript: utmvcScript.slice(0, 100), utmvcScriptContentType, utmvcSubmitPath });
+      // this.logger.log({ message: `[UTMVC SCRIPT]`, utmvcScriptUrl, utmvcScript: utmvcScript.slice(0, 100), utmvcScriptContentType, utmvcSubmitPath });
 
       // //hypersdk
       const utmvcInput = new UtmvcInput(this.userAgent, utmvcScript, hyperSdkSessionIds);
@@ -299,7 +324,11 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       const { payload: utmvcCookie, swhanedl } = await generateUtmvcCookie(hyperSdkSession, utmvcInput);
       this.sdkUsage++;
 
-      this.logger.log({ message: `[UTMVC SCRIPT] generated [v]`, utmvcCookie: utmvcCookie, swhanedl });
+      this.logger.log({
+        message: `[UTMVC SCRIPT] generated [v]`,
+        // utmvcCookie: utmvcCookie,
+        //  swhanedl
+      });
       await this.setUtmvcCookie(utmvcCookie);
 
       //submit utmvc token
@@ -310,7 +339,12 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
         setCookie: utmvcSubmitSetCookie,
       } = await this.fetch({ url: utmvcSubmitUrl, referer: rootUrl });
 
-      this.logger.log({ message: `[UTMVC TOKEN] submited [v]`, utmvcSubmitResponse, utmvcSubmitContentType, utmvcSubmitSetCookie });
+      this.logger.log({
+        message: `[UTMVC TOKEN] submited [v]`,
+        //  utmvcSubmitResponse,
+        //   utmvcSubmitContentType,
+        //   utmvcSubmitSetCookie
+      });
     }
 
     //cookies
@@ -349,19 +383,17 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     await this.bypassIncapsula({ rootUrl });
     await sleep(10);
 
-    const email = this.config.getOrThrow<string>('DUBIZZLE_EMAIL');
-    const password = this.config.getOrThrow<string>('DUBIZZLE_PASSWORD');
-
-    const authResp = await this.sendAuthRequest({ email, password });
+    const authResp = await this.sendAuthRequest({ email: this.email, password: this.password });
 
     const { dbz_ref_id } = authResp as { dbz_ref_id: string };
 
+    await sleep(5);
     const emptyTokens = (await this.sendAuthRequest(null)) as { access_token: string; refresh_token: string };
 
     this.access_token = emptyTokens.access_token;
     this.refresh_token = emptyTokens.refresh_token;
 
-    this.logger.log({ emptyTokens, authResp });
+    // this.logger.log({ emptyTokens, authResp });
 
     // await this.requestMagicLink({ dbz_ref_id });
 
@@ -405,11 +437,13 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     await this.saveModuleState();
   }
   // to decorate
-  async visitJobsDomain() {
+  async visitJobsDomain(forceLoadSession?: boolean) {
     const rootUrl = 'https://jobs.dubizzle.com/';
-    await this.loadLatestModuleState();
+    if (!forceLoadSession) {
+      await this.loadLatestModuleState();
+    }
 
-    this.logger.log(await this.getCookieString(rootUrl));
+    // this.logger.log(await this.getCookieString(rootUrl));
     await this.bypassIncapsula({ rootUrl });
 
     const tokens = (await this.sendAuthRequest(null)) as { access_token: string; refresh_token: string };
@@ -424,9 +458,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   }
 
   //to decorate
-  async scrap(){
-
-  }
+  async scrap() {}
   /**
    * Helper: Stores an array of Set-Cookie strings into the jar.
    * tough-cookie validates the domain, so we must provide the 'currentUrl'.
@@ -555,6 +587,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       sdkUsage: this.sdkUsage,
       accessToken: localStorage.access_token,
       refreshToken: localStorage.refresh_token,
+      userEmail: this.email,
     });
     const { id: sessionId } = session;
 
@@ -581,7 +614,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
   async loadLatestModuleState() {
     // const session = await this.bypassRepo.getLatestSession();
 
-    const session = await this.bypassRepo.getLatestSessionByIp(this.ip);
+    const session = await this.bypassRepo.getLatestSessionByIpAndEmail({ ip: this.ip, email: this.email });
 
     if (!session) {
       return { success: false };
@@ -610,20 +643,5 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     await this.setModuleState({ cookies, localStorage: { access_token: session?.accessToken!, refresh_token: session?.refreshToken! } });
     return { success: true };
-  }
-
-  getVacancies({ cookieString, access_token }: { cookieString: string; access_token: string }) {
-    const url = `https://jobs.dubizzle.com/svc/ats/api/v1/listing?status=live`;
-    return this.fetch({ url, access_token, method: 'GET' });
-  }
-  getApplies(props: { vacancyIds: string[]; }) {
-    const { vacancyIds } = props;
-
-    return Promise.all(
-      vacancyIds.map((vacancyId) => {
-        const url = `https://jobs.dubizzle.com/svc/ats/api/v4/application?job_listing=${vacancyId}&is_in_pipeline=1&sort_by=created_at`;
-        return this.fetch({ url, method: 'GET' });
-      }),
-    );
   }
 }
