@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { DubizzleService } from './dubizzle.service';
 import { DubizzleController } from './dubizzle.controller';
 import { HttpModule } from '@nestjs/axios';
-import { BrowserSessionRepository } from './repositories/browser-session.repository';
 import { BypassRepository } from './repositories/bypass.repository';
 import { DubizzleSchedulerService } from './dubizzle-scheduler/dubizzle-scheduler.service';
 import { DubizzleScrapperService } from './dubizzle-scrapper/dubizzle-scrapper.service';

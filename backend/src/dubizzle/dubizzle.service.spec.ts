@@ -3,7 +3,6 @@ import { DubizzleService } from './dubizzle.service';
 import { Logger } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
-import { BrowserSessionRepository } from './repositories/browser-session.repository';
 import { PrismaModule } from '../prisma/prisma.module';
 import { BypassRepository } from './repositories/bypass.repository';
 describe('DubizzleService', () => {
@@ -23,7 +22,7 @@ describe('DubizzleService', () => {
         }),
         PrismaModule,
       ],
-      providers: [DubizzleService, BrowserSessionRepository, BypassRepository],
+      providers: [DubizzleService, BypassRepository],
     })
       .setLogger(new Logger())
       .compile();
