@@ -15,9 +15,7 @@ export class ScrappingRepository {
    */
   async upsertJob(job: JobListing) {
     try {
-      const locationString = Array.isArray(job.data.location?.name) 
-        ? job.data.location.name.join(', ') 
-        : '';
+      const locationString = Array.isArray(job.data.location?.name) ? job.data.location.name.join(', ') : '';
 
       return await this.prisma.jobListing.upsert({
         where: { id: job.id },
@@ -67,6 +65,7 @@ export class ScrappingRepository {
           currentCompany: profile.current_company,
           totalExperience: profile.total_work_experience,
           cvUrl: profile.cv_url,
+          visaStatus: profile.visa_status?.value,
           updatedAt: new Date(),
         },
         create: {
@@ -82,6 +81,7 @@ export class ScrappingRepository {
           salaryExpectation: profile.salary_expectations?.value,
           totalExperience: profile.total_work_experience,
           cvUrl: profile.cv_url,
+          visaStatus: profile.visa_status?.value,
           photoUrl: applicantData.photo_url,
         },
       });

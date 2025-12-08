@@ -94,6 +94,7 @@ model Applicant {
   educationLevel  String? @map("education_level")
   totalExperience String? @map("total_experience")
   salaryExpectation String? @map("salary_expectation")
+  visaStatus     String? @map("visa_status")
   
   cvUrl          String? @map("cv_url")
   photoUrl       String? @map("photo_url")
