@@ -113,7 +113,7 @@ export interface ExperienceValue {
   maximum_experience: number;
   minimum_experience: number | string; // JSON 1 has number (1), JSON 2 has string ("0")
 }
-export interface VacancyResponce {
+export interface JobListingResponce {
   count: number;
   next: string;
   previous: string;
