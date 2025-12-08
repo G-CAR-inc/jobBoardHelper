@@ -51,3 +51,80 @@ model Cookie {
 
   @@map("cookies")
 }
+
+
+
+model JobListing {
+  id          String   @id // Dubizzle UUID
+  legacyId    Int?     @map("legacy_id")
+  name        String
+  description String?
+  companyName String?  @map("company_name")
+  status      String
+  
+  // Normalized Data Fields
+  salary          String?
+  location        String?
+  industry        String?
+  employmentType  String?  @map("employment_type")
+  educationLevel  String?  @map("education_level")
+  workExperience  String?  @map("work_experience")
+  
+  postedAt    DateTime @map("posted_at")
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  applications JobApplication[]
+
+  @@map("job_listings")
+}
+
+model Applicant {
+  id             String  @id // Dubizzle Applicant ID
+  firstName      String  @map("first_name")
+  lastName       String  @map("last_name")
+  email          String? 
+  phone          String?
+  
+  // Profile Details
+  nationality    String?
+  currentPosition String? @map("current_position")
+  currentCompany  String? @map("current_company")
+  educationLevel  String? @map("education_level")
+  totalExperience String? @map("total_experience")
+  salaryExpectation String? @map("salary_expectation")
+  
+  cvUrl          String? @map("cv_url")
+  photoUrl       String? @map("photo_url")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  applications   JobApplication[]
+
+  @@map("applicants")
+  // Optional: Unique index on email if IDs aren't consistent, 
+  // but usually Dubizzle IDs are safer for external refs
+}
+
+model JobApplication {
+  id             String   @id // Dubizzle Application ID
+  
+  jobId          String   @map("job_id")
+  job            JobListing @relation(fields: [jobId], references: [id])
+
+  applicantId    String   @map("applicant_id")
+  applicant      Applicant @relation(fields: [applicantId], references: [id])
+
+  // Application Meta
+  isRejected     Boolean  @default(false) @map("is_rejected")
+  isViewed       Boolean  @default(false) @map("is_viewed")
+  relevancyScore Float?   @map("relevancy_score")
+  
+  appliedAt      DateTime @map("applied_at") // The created_at from source
+  dbCreatedAt    DateTime @default(now()) @map("db_created_at")
+
+  @@unique([jobId, applicantId]) // Prevent duplicate applications
+  @@map("job_applications")
+}

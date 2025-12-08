@@ -6,6 +6,7 @@ import { BrowserSessionRepository } from './repositories/browser-session.reposit
 import { BypassRepository } from './repositories/bypass.repository';
 import { DubizzleSchedulerService } from './dubizzle-scheduler/dubizzle-scheduler.service';
 import { DubizzleScrapperService } from './dubizzle-scrapper/dubizzle-scrapper.service';
+import { ScrappingRepository } from './repositories/scrapping.repository';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { DubizzleScrapperService } from './dubizzle-scrapper/dubizzle-scrapper.s
     }),
   ],
   controllers: [DubizzleController],
-  providers: [DubizzleService, BypassRepository, DubizzleSchedulerService, DubizzleScrapperService],
+  providers: [DubizzleService, BypassRepository, DubizzleSchedulerService, DubizzleScrapperService, ScrappingRepository],
   exports: [DubizzleService],
 })
 export class DubizzleModule {}
