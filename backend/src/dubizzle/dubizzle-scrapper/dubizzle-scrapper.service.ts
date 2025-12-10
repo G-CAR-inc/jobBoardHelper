@@ -232,6 +232,7 @@ export class DubizzleScrapperService implements OnModuleInit {
   }
 
   async start() {
+    await this.dubizzle.refreshSession();
     const expiredJobIds = await this.syncJobListings();
 
     await this.syncJobApplications(expiredJobIds);

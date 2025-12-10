@@ -82,6 +82,9 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       );
       return;
     }
+    await this.refreshSession();
+  }
+  public async refreshSession() {
     const { remains, result } = await this.checkIfReeseValid();
     this.logger.log(`last reese84 token state: remains: ${remains}, isActive: ${result}`);
     if (!result) {
@@ -89,7 +92,6 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       await this.visitJobsDomain();
     }
   }
-
   public async fetch(props: {
     url: string;
     headers?: Record<string, string>;
