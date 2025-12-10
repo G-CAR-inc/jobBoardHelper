@@ -1,4 +1,4 @@
-import { reese84Token } from './types/auth.types';
+import { CustomTokenPayload, reese84Token, TokenVerificationResult } from './types/auth.types';
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 import { HttpService } from '@nestjs/axios';
@@ -82,11 +82,69 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     await this.refreshSession();
-    this.verifyTokens()
   }
-  async verifyTokens() {
-    const payload = jwt.decode(this.access_token);
-    this.logger.log(payload);
+  /**
+   * Decodes and verifies the access token against four required conditions:
+   * 1. Not expired (exp > now)
+   * 2. Email matches this.email
+   * 3. logged_in flag is true
+   * 4. device_info.is_device_verified is true
+   * @returns {TokenVerificationResult} An object indicating validity and a list of errors.
+   */
+  async verifyTokens(): Promise<TokenVerificationResult> {
+    const errors: string[] = [];
+
+    if (!this.access_token) {
+      errors.push('Access token is missing.');
+      this.logger.error('Access token is missing, cannot verify.');
+      return { isValid: false, errors };
+    }
+
+    // NOTE: jwt.decode() is used as requested. For full security, use jwt.verify()
+    // with a secret/public key to validate the token's signature.
+    const payload = jwt.decode(this.access_token) as CustomTokenPayload;
+
+    if (!payload) {
+      errors.push('Failed to decode token payload.');
+      this.logger.error('Failed to decode access token.');
+      return { isValid: false, errors };
+    }
+
+    const nowInSeconds = Math.floor(Date.now() / 1000);
+
+    // 1. Check for Expiration (exp > now)
+    if (payload.exp < nowInSeconds) {
+      errors.push(`Token is expired. Expiration time (unix): ${payload.exp}`);
+      this.logger.warn(`Token expired.`);
+    }
+
+    // 2. Check for Email Match (payload.user_data.email === this.email)
+    if (payload.user_data.email !== this.email) {
+      errors.push(`Email mismatch. Expected: "${this.email}", Got: "${payload.user_data.email}"`);
+      this.logger.warn(`Token email (${payload.user_data.email}) does not match configured email (${this.email}).`);
+    }
+
+    // 3. Check for logged_in flag
+    if (!payload.flags.logged_in) {
+      errors.push('User is not logged in (flags.logged_in is false).');
+      this.logger.warn('Token flagged user as not logged in.');
+    }
+
+    // 4. Check for device_verified flag
+    if (!payload.device_info.is_device_verified) {
+      errors.push('Device is not verified (device_info.is_device_verified is false).');
+      this.logger.warn('Token flagged device as not verified.');
+    }
+
+    const isValid = errors.length === 0;
+
+    if (isValid) {
+      this.logger.log('Access token successfully verified against all conditions.');
+    } else {
+      this.logger.error(`Access token verification failed with errors: ${errors.join('; ')}`);
+    }
+
+    return { isValid, errors };
   }
   public async refreshSession() {
     const { remains, result } = await this.checkIfReeseValid();
@@ -94,6 +152,11 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     if (!result) {
       this.logger.log('refreshing session by visiting jobs domain');
       await this.visitJobsDomain();
+
+      const { isValid, errors } = await this.verifyTokens();
+      if (!isValid) {
+        throw new Error(errors.join('\n'));
+      }
     }
   }
   public async fetch(props: {
