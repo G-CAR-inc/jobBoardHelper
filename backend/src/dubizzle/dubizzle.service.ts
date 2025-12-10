@@ -233,7 +233,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     await this.submitReeseSensor({ reeeseSensorSubmitionUrl: reeeseSensorUrl, reeseSensor: dynamicReeseSensor });
   }
 
-  getStaticReeseInfo(htmlString: string, htmlUrl: string) {
+  private getStaticReeseInfo(htmlString: string, htmlUrl: string) {
     // The specific path we are looking for
     const staticReesePath = '/We-a-did-and-He-him-as-desir-call-their-Banquo-B';
     const url = new URL(htmlUrl);
@@ -259,7 +259,7 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     return { hasStaticReese, staticReesePath, staticReeseSubmitPath };
   }
   private async bypassIncapsula(props: { rootUrl: string }) {
-    this.logger.log('[START] scrapping...');
+    this.logger.log('[START] bypassing incapsula...');
     const { rootUrl } = props;
     //find latest session
 
@@ -455,11 +455,9 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
     this.logger.log({ tokens });
     await this.saveModuleState();
 
-    sleep(5);
+    // sleep(15);
   }
 
-  //to decorate
-  async scrap() {}
   /**
    * Helper: Stores an array of Set-Cookie strings into the jar.
    * tough-cookie validates the domain, so we must provide the 'currentUrl'.
