@@ -1,7 +1,6 @@
 import { reese84Token } from './types/auth.types';
-import { defineConfig } from 'prisma/config';
-import { Session } from './../../node_modules/.prisma/client/index.d';
 import { ConfigService } from '@nestjs/config';
+import * as jwt from 'jsonwebtoken';
 import { HttpService } from '@nestjs/axios';
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import axios, { AxiosError } from 'axios';
@@ -83,6 +82,11 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     await this.refreshSession();
+    this.verifyTokens()
+  }
+  async verifyTokens() {
+    const payload = jwt.decode(this.access_token);
+    this.logger.log(payload);
   }
   public async refreshSession() {
     const { remains, result } = await this.checkIfReeseValid();
@@ -453,6 +457,8 @@ export class DubizzleService implements OnModuleInit, OnModuleDestroy {
 
     this.access_token = tokens.access_token;
     this.refresh_token = tokens.refresh_token;
+
+    this.verifyTokens();
 
     this.logger.log({ tokens });
     await this.saveModuleState();
