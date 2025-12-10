@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 // import { DubizzleService } from '../dubizzle.service';
 import { DubizzleScrapperService } from '../dubizzle-scrapper/dubizzle-scrapper.service';
-import { normalDistribution } from '../../utils/shared/srared.utils';
+import { normalDistribution, sleep } from '../../utils/shared/srared.utils';
 
 @Injectable()
 export class DubizzleSchedulerService {
@@ -40,6 +40,7 @@ export class DubizzleSchedulerService {
     try {
       const timeout = Math.floor(this.random() * 60) + 15;
       this.logger.log(`[TIMEOUT] sleeping for ${timeout} sec`);
+      await sleep(timeout);
       await this.dubizzleScraper.start();
       this.logger.log(' [CRON] Completed scheduled job: dubizzleScraper.start()');
     } catch (error) {
