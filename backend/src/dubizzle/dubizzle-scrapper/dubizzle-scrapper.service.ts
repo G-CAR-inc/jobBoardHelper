@@ -201,8 +201,8 @@ export class DubizzleScrapperService implements OnModuleInit {
 
     for (const jobId of jobsToProcess) {
       // 1. Get last sync date
-      // const lastAppDate = await this.repo.getLastApplicationDate(jobId);
-      const lastAppDate = null;
+      const lastAppDate = await this.repo.getLastApplicationDate(jobId);
+      // const lastAppDate = null;
 
       // 2. Fetch new applications only
       const applications = await this.getAllApplications(jobId, lastAppDate);
