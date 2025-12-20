@@ -2,12 +2,16 @@
 import { Body, Controller, Get, Logger, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { DubizzleService } from './dubizzle.service';
 import { ApiKeyGuard } from './guards/api-key/api-key.guard';
+import { DubizzleScrapperService } from './dubizzle-scrapper/dubizzle-scrapper.service';
 @Controller('dubizzle')
 @UseGuards(ApiKeyGuard) // Protects all endpoints in this controller
 export class DubizzleController {
   private readonly logger = new Logger(DubizzleController.name);
 
-  constructor(private readonly dubizzleService: DubizzleService) {}
+  constructor(
+    private readonly dubizzleService: DubizzleService,
+    private readonly dubizzleScapper: DubizzleScrapperService,
+  ) {}
 
   @Get('magic-link')
   async triggerAuthFlow() {
@@ -38,5 +42,9 @@ export class DubizzleController {
   @Post('visit-jobs-domain')
   async visitJobsDomain() {
     return this.dubizzleService.visitJobsDomain();
+  }
+  @Post('seed')
+  async runScrapping() {
+    return this.dubizzleScapper.start();
   }
 }
