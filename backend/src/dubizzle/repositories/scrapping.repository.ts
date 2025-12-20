@@ -67,6 +67,7 @@ export class ScrappingRepository {
           cvUrl: profile.cv_url,
           visaStatus: profile.visa_status?.value,
           updatedAt: new Date(),
+          country: profile.country?.value,
           age: applicantData.age,
         },
         create: {
@@ -84,6 +85,7 @@ export class ScrappingRepository {
           cvUrl: profile.cv_url,
           visaStatus: profile.visa_status?.value,
           photoUrl: applicantData.photo_url,
+          country: profile.country?.value,
           age: applicantData.age,
         },
       });

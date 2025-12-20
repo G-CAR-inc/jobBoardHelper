@@ -80,6 +80,7 @@ model Applicant {
 
   // Profile Details
   nationality       String?
+  country           String?
   currentPosition   String? @map("current_position")
   currentCompany    String? @map("current_company")
   educationLevel    String? @map("education_level")
