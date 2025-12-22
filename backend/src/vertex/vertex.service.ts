@@ -6,7 +6,7 @@ export class VertexService {
   private logger: Logger = new Logger(VertexService.name);
   constructor(@Inject() private repo: VertexRepository) {}
 
-  async test() {
+  async analyze() {
     const jobApplications = await this.repo.getAllJobApplications();
     this.logger.log(jobApplications, jobApplications.length);
     return jobApplications;

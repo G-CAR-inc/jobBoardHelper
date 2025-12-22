@@ -20,6 +20,6 @@ describe('VertexService', () => {
   });
 
   it('should be defined', async () => {
-    await service.test();
+    await service.analyze();
   });
 });
