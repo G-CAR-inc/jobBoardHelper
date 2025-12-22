@@ -23,6 +23,8 @@
     "test:bypass": "npm run test -- src/bypass/bypass.service.spec.ts",
     "test:ssh": "npm run test -- src/proxy/ssh-tunnel/ssh-tunnel.service.spec.ts",
     "test:scraping": "npm run test -- src/dubizzle/dubizzle-scrapper/dubizzle-scrapper.service.spec.ts",
+
+    "test:vertex": "npm run test -- src/vertex/vertex.service.spec.ts",
     "prisma:actualize": "prisma migrate deploy && prisma generate"
   },
   "dependencies": {
