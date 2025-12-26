@@ -4,6 +4,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { VertexAI, GenerativeModel, Part } from '@google-cloud/vertexai';
 import { firstValueFrom } from 'rxjs';
+import path from 'path';
 
 @Injectable()
 export class VertexService {
@@ -18,9 +19,12 @@ export class VertexService {
   ) {
     this.vertexAI = new VertexAI({
       project: this.configService.getOrThrow<string>('GCP_PROJECT_ID'),
-      location: this.configService.get('GCP_LOCATION'),
+   
+      googleAuthOptions: {
+        keyFilename: path.join(process.cwd(), 'vertex_api_gemini.json'),
+      },
     });
-    this.model = this.vertexAI.getGenerativeModel({ model: 'gemini-1.5-flash-001' });
+    this.model = this.vertexAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
   }
 
   async analyze() {
@@ -39,9 +43,9 @@ export class VertexService {
         }
 
         // 1. Download CV
-        const cvBuffer = await this.downloadCv(applicant.cvUrl);
+        const cvBuffer = await this.downloadCv(applicant.cvUrl!);
         const mimeType = 'application/pdf'; // Assuming PDF, you might want to detect this from headers
-
+        this.logger.log(cvBuffer);
         // 2. Call Gemini
         const analysis = await this.analyzeCvWithGemini(cvBuffer, mimeType, applicant.age);
 
@@ -52,6 +56,7 @@ export class VertexService {
         //   applicantId: applicant.id,
         //   analysis,
         // });
+        return;
       } catch (error) {
         this.logger.error(`Failed to analyze application ${app.id}: ${error.message}`);
       }
@@ -72,6 +77,7 @@ export class VertexService {
         mimeType: mimeType,
       },
     };
+
     let promptText = `
       You are an expert HR Recruiter. Analyze the attached CV and extract specific information in JSON format.
       
@@ -80,12 +86,18 @@ export class VertexService {
       - If NOT explicitly mentioned, analyze their work experience. If they have worked in roles in the UAE that typically require driving (e.g., Sales Representative, Driver, Logistics), infer it as likely true.
       - Provide a brief reasoning in "licenseReason".
     `;
+
     const ifAgeAnalyzisIsRequired = currentAge === null;
+
     if (ifAgeAnalyzisIsRequired) {
       promptText += `
-        Question 2: The candidate's age is unknown. Based on their education graduation dates and work history timeline, estimate if the candidate is currently between 24 and 65 years old.
-        - Set "isAgeBetween24And65" to true, false, or null (if impossible to determine).
-        - Provide a brief reasoning in "ageReason".
+        Question 2: Investigate the candidate's age.
+        - Step 1: Search for an explicit "Date of Birth", "DOB", or "Age" mentioned in the document.
+        - Step 2: If not explicitly found, analyze the education timeline. Assume a candidate is approximately 18 upon High School graduation and 21-23 upon Bachelor's graduation. 
+        - Step 3: Analyze the work history start date to corroborate the estimated age.
+        - Output the "estimatedAge" as a number (e.g., 29). If it is completely impossible to determine, set to null.
+        - Set "isAgeBetween24And65" to true if the estimated age is >= 24 and <= 65.
+        - Provide the logic used in "ageReason" (e.g., "Born 1995" or "Bachelor's in 2018 implies approx 27-28 years old").
       `;
     }
 
@@ -96,8 +108,9 @@ export class VertexService {
         "licenseReason": "string",
        ${
          ifAgeAnalyzisIsRequired
-           ? `"isAgeBetween24And65": boolean | null, 
-        "ageReason": "string"`
+           ? `"estimatedAge": number | null,
+            "isAgeBetween24And65": boolean | null, 
+            "ageReason": "string"`
            : ''
        }
       }
@@ -106,5 +119,11 @@ export class VertexService {
     const result = await this.model.generateContent({
       contents: [{ role: 'user', parts: [filePart, { text: promptText }] }],
     });
+
+    // You might want to parse the result.response.text() here to ensure it's valid JSON
+    // const responseText = result.response.text();
+    // return JSON.parse(responseText.replace(/```json|```/g, ''));
+
+    return result.response;
   }
 }

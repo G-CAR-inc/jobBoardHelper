@@ -58,3 +58,5 @@ token.json
 /data
 /generated/prisma
 tsconfig.build.tsbuildinfo
+
+vertex_api_gemini.json
