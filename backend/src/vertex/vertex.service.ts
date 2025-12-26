@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { VertexRepository } from './repositories/vertex-repo.repository';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
@@ -7,26 +7,27 @@ import { firstValueFrom } from 'rxjs';
 import path from 'path';
 
 @Injectable()
-export class VertexService {
+export class VertexService implements OnModuleInit {
   private logger: Logger = new Logger(VertexService.name);
   private vertexAI: VertexAI;
   private model: GenerativeModel;
 
   constructor(
     @Inject() private repo: VertexRepository,
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
-  ) {
-    this.vertexAI = new VertexAI({
-      project: this.configService.getOrThrow<string>('GCP_PROJECT_ID'),
-   
-      googleAuthOptions: {
-        keyFilename: path.join(process.cwd(), 'vertex_api_gemini.json'),
-      },
-    });
-    this.model = this.vertexAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
-  }
+    private readonly http: HttpService,
+    private readonly config: ConfigService,
+  ) {}
+  onModuleInit() {
+    const project = this.config.getOrThrow<string>('GCP_PROJECT_ID');
 
+    const keyFilename = path.join(process.cwd(), this.config.getOrThrow<string>('VERTEX_API_TOKEN'));
+    const model = this.config.getOrThrow<string>('VERTEX_AI_MODEL');
+    this.vertexAI = new VertexAI({
+      project,
+      googleAuthOptions: { keyFilename },
+    });
+    this.model = this.vertexAI.getGenerativeModel({ model });
+  }
   async analyze() {
     const jobApplications = await this.repo.getAllJobApplications();
     this.logger.log(`Analyzing ${jobApplications.length} applications...`);
@@ -66,7 +67,7 @@ export class VertexService {
   }
 
   private async downloadCv(url: string): Promise<Buffer> {
-    const response = await firstValueFrom(this.httpService.get(url, { responseType: 'arraybuffer' }));
+    const response = await firstValueFrom(this.http.get(url, { responseType: 'arraybuffer' }));
     return Buffer.from(response.data);
   }
 
