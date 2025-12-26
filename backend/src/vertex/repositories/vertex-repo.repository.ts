@@ -31,7 +31,7 @@ export class VertexRepository {
         //   gte: oneHourAgo,
         // },
         analysis: {
-            is: null
+          is: null,
         },
         applicant: {
           nationality: {
@@ -41,10 +41,7 @@ export class VertexRepository {
             notIn: ['Not Applicable', 'Student'],
           },
           AND: {
-            OR: [
-              { age: null },
-              { age: { gte: 24, lte: 65 } },
-            ],
+            OR: [{ age: null }, { age: { gte: 24, lte: 65 } }],
           },
         },
       },
@@ -54,28 +51,27 @@ export class VertexRepository {
   async saveAnalysis(
     applicationId: string,
     data: {
-        ageVerdict: boolean;
-        driverLicenseVerdict: boolean;
-        residenceVerdict: boolean;
-        visaVerdict: boolean;
-        
-        estimatedAge: number | null;
-        visaStatus: string | null;
-        
-        ageReason: string | null;
-        driverLicenseReason: string | null;
-        residenceReason: string | null;
-        visaReason: string | null;
-        
-        totalTokens: number | null;
+      ageVerdict: boolean;
+      driverLicenseVerdict: boolean;
+      residenceVerdict: boolean;
+      visaVerdict: boolean;
 
-        rawResponse: any;
-    }
+      estimatedAge: number | null;
+
+      ageReason: string | null;
+      driverLicenseReason: string | null;
+      residenceReason: string | null;
+      visaReason: string | null;
+
+      totalTokens: number | null;
+
+      rawResponse: any;
+    },
   ) {
     return this.prisma.applicationAnalysis.create({
       data: {
         applicationId,
-        ...data
+        ...data,
       },
     });
   }

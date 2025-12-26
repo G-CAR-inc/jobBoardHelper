@@ -81,8 +81,6 @@ export class VertexService implements OnModuleInit {
 
           // Extracted Data
           estimatedAge: estimatedAge || null,
-          visaStatus: applicant.visaStatus || null, // Taken from Applicant Profile
-
           // Reasons
           ageReason: analysisData.ageReason || null,
           driverLicenseReason: analysisData.licenseReason || null,

@@ -133,7 +133,6 @@ model ApplicationAnalysis {
   
   // 2. Extracted Data
   estimatedAge         Int?    @map("estimated_age")
-  visaStatus           String? @map("visa_status") 
   
   // 3. Reasoning
   ageReason            String? @map("age_reason")
