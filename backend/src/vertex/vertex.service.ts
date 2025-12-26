@@ -28,8 +28,8 @@ export class VertexService implements OnModuleInit {
     });
     this.model = this.vertexAI.getGenerativeModel({ model });
   }
-  async analyze() {
-    const jobApplications = await this.repo.getAllJobApplications();
+  async analyze(force?: boolean) {
+    const jobApplications = await this.repo.getAllJobApplications(force);
     this.logger.log(`Analyzing ${jobApplications.length} applications...`);
 
     const results: any[] = [];
@@ -124,7 +124,7 @@ export class VertexService implements OnModuleInit {
       
       Question 1: Does the candidate have a UAE Driving License? 
       - If explicitly mentioned, set "hasUaeLicense" to true.
-      - If NOT mentioned but roles imply it (Driver, Sales in UAE), infer true.
+      - If NOT mentioned but roles imply it (Driver in UAE), infer true.
       - Provide a brief reasoning in "licenseReason".
     `;
 

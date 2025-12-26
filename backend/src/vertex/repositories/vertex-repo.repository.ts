@@ -15,9 +15,9 @@ export class VertexRepository {
     });
   }
 
-  getAllJobApplications() {
+  getAllJobApplications(force?: boolean) {
     const oneHourAgo = new Date();
-    oneHourAgo.setHours(oneHourAgo.getHours() - 10);
+    oneHourAgo.setHours(oneHourAgo.getHours() - 1);
 
     return this.prisma.jobApplication.findMany({
       select: {
@@ -27,9 +27,11 @@ export class VertexRepository {
         jobId: true,
       },
       where: {
-        // dbCreatedAt: {
-        //   gte: oneHourAgo,
-        // },
+        dbCreatedAt: force
+          ? undefined
+          : {
+              gte: oneHourAgo,
+            },
         analysis: {
           is: null,
         },
