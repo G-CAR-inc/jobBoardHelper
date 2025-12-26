@@ -27,9 +27,9 @@ export class VertexRepository {
         jobId: true,
       },
       where: {
-        dbCreatedAt: {
-          gte: oneHourAgo,
-        },
+        // dbCreatedAt: {
+        //   gte: oneHourAgo,
+        // },
         analysis: {
             is: null
         },

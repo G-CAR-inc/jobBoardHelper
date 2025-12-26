@@ -6,7 +6,6 @@ import { VertexRepository } from './repositories/vertex-repo.repository';
 import { ConfigModule } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
 
-
 describe('VertexService', () => {
   let service: VertexService;
 
@@ -21,7 +20,11 @@ describe('VertexService', () => {
     service = module.get<VertexService>(VertexService);
   });
 
-  it('should be defined', async () => {
-    await service.analyze();
-  });
+  it(
+    'should be defined',
+    async () => {
+      await service.analyze();
+    },
+    60 * 1000,
+  );
 });
