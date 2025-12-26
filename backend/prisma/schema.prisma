@@ -115,6 +115,38 @@ model JobApplication {
   appliedAt   DateTime @map("applied_at") // The created_at from source
   dbCreatedAt DateTime @default(now()) @map("db_created_at")
 
+  analysis ApplicationAnalysis?
+
   @@unique([jobId, applicantId]) // Prevent duplicate applications
   @@map("job_applications")
+}
+model ApplicationAnalysis {
+  id            Int            @id @default(autoincrement())
+  applicationId String         @unique @map("application_id")
+  application   JobApplication @relation(fields: [applicationId], references: [id])
+  
+  // 1. Verdict Flags
+  ageVerdict           Boolean @map("age_verdict")
+  driverLicenseVerdict Boolean @map("driver_license_verdict")
+  residenceVerdict     Boolean @map("residence_verdict")
+  visaVerdict          Boolean @map("visa_verdict")
+  
+  // 2. Extracted Data
+  estimatedAge         Int?    @map("estimated_age")
+  visaStatus           String? @map("visa_status") 
+  
+  // 3. Reasoning
+  ageReason            String? @map("age_reason")
+  driverLicenseReason  String? @map("driver_license_reason")
+  residenceReason      String? @map("residence_reason")
+  visaReason           String? @map("visa_reason")
+
+  // 4. Token Usage 
+  totalTokens          Int?    @map("total_tokens")
+
+  // 5. Original Source
+  rawResponse          Json    @map("raw_response")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  @@map("application_analyses")
 }

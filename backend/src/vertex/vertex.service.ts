@@ -19,9 +19,9 @@ export class VertexService implements OnModuleInit {
   ) {}
   onModuleInit() {
     const project = this.config.getOrThrow<string>('GCP_PROJECT_ID');
-
     const keyFilename = path.join(process.cwd(), this.config.getOrThrow<string>('VERTEX_API_TOKEN'));
     const model = this.config.getOrThrow<string>('VERTEX_AI_MODEL');
+
     this.vertexAI = new VertexAI({
       project,
       googleAuthOptions: { keyFilename },
@@ -32,7 +32,7 @@ export class VertexService implements OnModuleInit {
     const jobApplications = await this.repo.getAllJobApplications();
     this.logger.log(`Analyzing ${jobApplications.length} applications...`);
 
-    const results = [];
+    const results: any[] = [];
 
     for (const app of jobApplications) {
       try {
@@ -43,21 +43,55 @@ export class VertexService implements OnModuleInit {
           continue;
         }
 
-        // 1. Download CV
-        const cvBuffer = await this.downloadCv(applicant.cvUrl!);
-        const mimeType = 'application/pdf'; // Assuming PDF, you might want to detect this from headers
-        this.logger.log(cvBuffer);
-        // 2. Call Gemini
-        const analysis = await this.analyzeCvWithGemini(cvBuffer, mimeType, applicant.age);
+        const cvBuffer = await this.downloadCv(applicant.cvUrl);
+        const mimeType = 'application/pdf';
 
-        this.logger.log(`Analysis for ${applicant.firstName} ${applicant.lastName}:`, analysis);
+        // Call Gemini and get the raw result object (not just text)
+        const { text, usageMetadata } = await this.analyzeCvWithGemini(cvBuffer, mimeType, applicant.age);
 
-        // results.push({
-        //   applicationId: app.id,
-        //   applicantId: applicant.id,
-        //   analysis,
-        // });
-        return;
+        // Parse JSON
+        let analysisData;
+        try {
+          const cleanedText = text.replace(/```json|```/g, '').trim();
+          analysisData = JSON.parse(cleanedText);
+        } catch (e) {
+          this.logger.error(`Failed to parse JSON for app ${app.id}`, e);
+          continue;
+        }
+
+        // Prepare Data for Saving
+        const ageVerdict = applicant.age !== null ? true : analysisData.isAgeBetween24And65 === true;
+
+        const estimatedAge = applicant.age !== null ? applicant.age : analysisData.estimatedAge;
+
+        const flattenedData = {
+          // Verdicts
+          ageVerdict: ageVerdict,
+          driverLicenseVerdict: !!analysisData.hasUaeLicense,
+          residenceVerdict: !!analysisData.isResident,
+          visaVerdict: !!analysisData.hasValidVisa,
+
+          // Extracted Data
+          estimatedAge: estimatedAge || null,
+          visaStatus: analysisData.visaType || null,
+
+          // Reasons
+          ageReason: analysisData.ageReason || null,
+          driverLicenseReason: analysisData.licenseReason || null,
+          residenceReason: analysisData.residenceReason || null,
+          visaReason: analysisData.visaReason || null,
+
+          // Token Usage
+          totalTokens: usageMetadata?.totalTokenCount || 0,
+
+          // Raw
+          rawResponse: analysisData,
+        };
+
+        await this.repo.saveAnalysis(app.id, flattenedData);
+
+        this.logger.log(`Saved analysis for ${applicant.firstName} ${applicant.lastName}`);
+        results.push({ applicationId: app.id, ...flattenedData });
       } catch (error) {
         this.logger.error(`Failed to analyze application ${app.id}: ${error.message}`);
       }
@@ -82,38 +116,37 @@ export class VertexService implements OnModuleInit {
     let promptText = `
       You are an expert HR Recruiter. Analyze the attached CV and extract specific information in JSON format.
       
-      Question 1: Does the candidate have a UAE Driving License? 
-      - If explicitly mentioned, set "hasUaeLicense" to true.
-      - If NOT explicitly mentioned, analyze their work experience. If they have worked in roles in the UAE that typically require driving (e.g., Sales Representative, Driver, Logistics), infer it as likely true.
-      - Provide a brief reasoning in "licenseReason".
+      1. UAE Driving License: 
+         - boolean "hasUaeLicense". True if explicit or strongly implied by roles (Driver, Sales).
+         - string "licenseReason".
+      
+      2. Residence Status:
+         - boolean "isResident". True if currently in UAE (address/phone).
+         - string "residenceReason".
+
+      3. Visa Status:
+         - boolean "hasValidVisa". False if "Student", "N/A", or outside UAE. True if "Employment", "Residence", "Freelance", "Dependent".
+         - string "visaType". Extract the specific text (e.g. "Employment Visa", "Visit Visa", "Golden Visa").
+         - string "visaReason".
     `;
 
     const ifAgeAnalyzisIsRequired = currentAge === null;
-
     if (ifAgeAnalyzisIsRequired) {
       promptText += `
-        Question 2: Investigate the candidate's age.
-        - Step 1: Search for an explicit "Date of Birth", "DOB", or "Age" mentioned in the document.
-        - Step 2: If not explicitly found, analyze the education timeline. Assume a candidate is approximately 18 upon High School graduation and 21-23 upon Bachelor's graduation. 
-        - Step 3: Analyze the work history start date to corroborate the estimated age.
-        - Output the "estimatedAge" as a number (e.g., 29). If it is completely impossible to determine, set to null.
-        - Set "isAgeBetween24And65" to true if the estimated age is >= 24 and <= 65.
-        - Provide the logic used in "ageReason" (e.g., "Born 1995" or "Bachelor's in 2018 implies approx 27-28 years old").
+      4. Age Analysis:
+         - number "estimatedAge". Estimate based on education/work timeline.
+         - boolean "isAgeBetween24And65".
+         - string "ageReason".
       `;
     }
 
     promptText += `
-      Output ONLY a raw JSON object (no markdown formatting) with the following structure:
+      Output ONLY raw JSON:
       {
-        "hasUaeLicense": boolean,
-        "licenseReason": "string",
-       ${
-         ifAgeAnalyzisIsRequired
-           ? `"estimatedAge": number | null,
-            "isAgeBetween24And65": boolean | null, 
-            "ageReason": "string"`
-           : ''
-       }
+        "hasUaeLicense": boolean, "licenseReason": string,
+        "isResident": boolean, "residenceReason": string,
+        "hasValidVisa": boolean, "visaType": string, "visaReason": string,
+       ${ifAgeAnalyzisIsRequired ? `"estimatedAge": number, "isAgeBetween24And65": boolean, "ageReason": string` : ''}
       }
     `;
 
@@ -121,10 +154,17 @@ export class VertexService implements OnModuleInit {
       contents: [{ role: 'user', parts: [filePart, { text: promptText }] }],
     });
 
-    // You might want to parse the result.response.text() here to ensure it's valid JSON
-    // const responseText = result.response.text();
-    // return JSON.parse(responseText.replace(/```json|```/g, ''));
+    const response = result.response;
 
-    return result.response;
+    // SAFELY EXTRACT TEXT
+    // Handle cases where candidates might be missing or text structure varies
+    const candidate = response.candidates?.[0];
+    const textPart = candidate?.content?.parts?.[0];
+    const text = textPart?.text || '';
+
+    return {
+      text: text,
+      usageMetadata: response.usageMetadata,
+    };
   }
 }

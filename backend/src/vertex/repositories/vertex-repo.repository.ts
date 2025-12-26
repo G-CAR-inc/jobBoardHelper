@@ -1,10 +1,10 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { equal } from 'assert';
 
 @Injectable()
 export class VertexRepository {
   constructor(@Inject() private prisma: PrismaService) {}
+
   getAllJobListings() {
     return this.prisma.jobListing.findMany({
       select: {
@@ -14,6 +14,7 @@ export class VertexRepository {
       },
     });
   }
+
   getAllJobApplications() {
     const oneHourAgo = new Date();
     oneHourAgo.setHours(oneHourAgo.getHours() - 10);
@@ -22,12 +23,15 @@ export class VertexRepository {
       select: {
         id: true,
         applicant: true,
-        appliedAt: true, // This is the application time from the source
+        appliedAt: true,
         jobId: true,
       },
       where: {
         dbCreatedAt: {
           gte: oneHourAgo,
+        },
+        analysis: {
+            is: null
         },
         applicant: {
           nationality: {
@@ -39,10 +43,39 @@ export class VertexRepository {
           AND: {
             OR: [
               { age: null },
-              { age: { gte: 24, lte: 65 } }, // age є [24,65] U {null};
+              { age: { gte: 24, lte: 65 } },
             ],
           },
         },
+      },
+    });
+  }
+
+  async saveAnalysis(
+    applicationId: string,
+    data: {
+        ageVerdict: boolean;
+        driverLicenseVerdict: boolean;
+        residenceVerdict: boolean;
+        visaVerdict: boolean;
+        
+        estimatedAge: number | null;
+        visaStatus: string | null;
+        
+        ageReason: string | null;
+        driverLicenseReason: string | null;
+        residenceReason: string | null;
+        visaReason: string | null;
+        
+        totalTokens: number | null;
+
+        rawResponse: any;
+    }
+  ) {
+    return this.prisma.applicationAnalysis.create({
+      data: {
+        applicationId,
+        ...data
       },
     });
   }
