@@ -66,13 +66,14 @@ export class VertexRepository {
       driverLicenseVerdict: boolean;
       residenceVerdict: boolean;
       visaVerdict: boolean;
+      nationalityVerdict: boolean;
 
       estimatedAge: number | null;
+      nationality: string | null;
 
       ageReason: string | null;
       driverLicenseReason: string | null;
-      residenceReason: string | null;
-      visaReason: string | null;
+      nationalityReason: string | null;
 
       totalTokens: number | null;
 

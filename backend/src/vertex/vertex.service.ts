@@ -6,6 +6,20 @@ import { VertexAI, GenerativeModel, Part } from '@google-cloud/vertexai';
 import { firstValueFrom } from 'rxjs';
 import path from 'path';
 
+export interface LLMAnalysisResponse {
+  hasUaeLicense: boolean;
+  licenseReason: string;
+
+  // Age Fields (Optional)
+  estimatedAge?: number;
+  isAgeBetween24And65?: boolean;
+  ageReason?: string;
+
+  // Nationality Fields (Optional)
+  nationality?: string | null;
+  nationalityReason?: string;
+}
+
 @Injectable()
 export class VertexService implements OnModuleInit {
   private logger: Logger = new Logger(VertexService.name);
@@ -17,6 +31,7 @@ export class VertexService implements OnModuleInit {
     private readonly http: HttpService,
     private readonly config: ConfigService,
   ) {}
+
   onModuleInit() {
     const project = this.config.getOrThrow<string>('GCP_PROJECT_ID');
     const keyFilename = path.join(process.cwd(), this.config.getOrThrow<string>('VERTEX_API_TOKEN'));
@@ -28,8 +43,10 @@ export class VertexService implements OnModuleInit {
     });
     this.model = this.vertexAI.getGenerativeModel({ model });
   }
+
   async analyze(force?: boolean) {
     const jobApplications = await this.repo.getAllJobApplications(force);
+    this.logger.log(`Analyzing ${jobApplications.length} applications...`);
 
     const results: any[] = [];
 
@@ -46,51 +63,67 @@ export class VertexService implements OnModuleInit {
         const cvBuffer = await this.downloadCv(applicant.cvUrl);
         const mimeType = 'application/pdf';
 
-        // 2. Call Gemini (Optimized: Only asks for License & Age)
-        const { text, usageMetadata } = await this.analyzeCvWithGemini(cvBuffer, mimeType, applicant.age);
+        // 2. Call Gemini
+        const { text, usageMetadata } = await this.analyzeCvWithGemini(cvBuffer, mimeType, {
+          age: applicant.age,
+          nationality: applicant.nationality,
+        });
 
-        // 3. Parse JSON
-        let analysisData;
+        // 3. Parse JSON with Type Safety
+        let analysisData: LLMAnalysisResponse;
         try {
           const cleanedText = text.replace(/```json|```/g, '').trim();
-          analysisData = JSON.parse(cleanedText);
+          analysisData = JSON.parse(cleanedText) as LLMAnalysisResponse;
         } catch (e) {
           this.logger.error(`Failed to parse JSON for app ${app.id}`, e);
           continue;
         }
 
-        // 4. Determine Verdicts (Hybrid: DB + LLM)
+        // 4. Determine Verdicts & Prepare Data
 
-        // AGE: Trust DB if present, otherwise use LLM
-        const ageVerdict = applicant.age !== null ? true : analysisData.isAgeBetween24And65 === true;
-        const estimatedAge = applicant.age !== null ? applicant.age : analysisData.estimatedAge;
+        // --- Age Logic ---
+        const dbHasAge = applicant.age !== null;
+        const ageVerdict = dbHasAge ? true : analysisData.isAgeBetween24And65 === true;
+        const estimatedAge = dbHasAge ? applicant.age : analysisData.estimatedAge;
 
-        // RESIDENCE: Trust DB
+        const ageReason = dbHasAge ? null : analysisData.ageReason || null;
+
+        // --- Nationality Logic ---
+        const dbHasNationality = !!applicant.nationality;
+        const finalNationality = dbHasNationality ? applicant.nationality : analysisData.nationality;
+        const nationalityVerdict = finalNationality ? !['Pakistani', 'Bangladeshi'].includes(finalNationality!) : true;
+
+        const nationalityReason = dbHasNationality ? null : analysisData.nationalityReason || null;
+
+        // --- Visa Logic ---
+        const hasValidVisa = !!applicant.visaStatus;
+
+        // --- Residence Logic ---
         const isUaeResident = applicant.country === 'United Arab Emirates';
 
-        // VISA: Trust DB
-        const hasValidVisa = !!applicant.visaStatus;
 
         const flattenedData = {
           // Verdicts
-          ageVerdict: ageVerdict,
+          ageVerdict,
           driverLicenseVerdict: !!analysisData.hasUaeLicense,
-          residenceVerdict: !!isUaeResident,
+          residenceVerdict: isUaeResident,
           visaVerdict: hasValidVisa,
+          nationalityVerdict,
 
           // Extracted Data
           estimatedAge: estimatedAge || null,
+          nationality: finalNationality || null,
+
           // Reasons
-          ageReason: analysisData.ageReason || null,
+          ageReason, // Now strictly string | null
           driverLicenseReason: analysisData.licenseReason || null,
-          residenceReason: applicant.country || 'Unknown',
-          visaReason: applicant.visaStatus || 'Unknown',
+          nationalityReason, // Now strictly string | null
 
           // Token Usage
           totalTokens: usageMetadata?.totalTokenCount || 0,
 
-          // Raw Response (Includes the LLM analysis part)
-          rawResponse: analysisData,
+          // Raw Response
+          rawResponse: analysisData as any,
         };
 
         await this.repo.saveAnalysis(app.id, flattenedData);
@@ -113,7 +146,10 @@ export class VertexService implements OnModuleInit {
   private async analyzeCvWithGemini(
     fileBuffer: Buffer,
     mimeType: string,
-    optionalAspectsToIvestigate?: { age?: number | null; nationality?: string | null },
+    optionalAspectsToInvestigate?: {
+      age?: number | null;
+      nationality?: string | null;
+    },
   ) {
     const filePart: Part = {
       inlineData: {
@@ -125,16 +161,19 @@ export class VertexService implements OnModuleInit {
     let promptText = `
       You are an expert HR Recruiter. Analyze the attached CV and extract specific information in JSON format.
       
-      Question 1: Does the candidate have a UAE Driving License? 
+      Task 1: License Analysis.
+      Question: Does the candidate have a UAE Driving License? 
       - If explicitly mentioned, set "hasUaeLicense" to true.
       - If NOT mentioned but roles imply it (Driver in UAE), infer true.
       - Provide a brief reasoning in "licenseReason".
     `;
 
-    const ifAgeAnalyzisIsRequired = currentAge === null;
-    if (ifAgeAnalyzisIsRequired) {
+    const needsAgeAnalysis = !optionalAspectsToInvestigate?.age;
+    const needsNationalityAnalysis = !optionalAspectsToInvestigate?.nationality;
+
+    if (needsAgeAnalysis) {
       promptText += `
-        Question 2: Age Analysis (Age is unknown).
+        Task 2: Age Analysis (Age is unknown).
         - Estimate if the candidate is currently between 24 and 65 years old based on graduation year (Bachelor's ~22yo) and experience.
         - Set "isAgeBetween24And65" to true if they fall in this range.
         - Output "estimatedAge" as a number.
@@ -142,20 +181,37 @@ export class VertexService implements OnModuleInit {
       `;
     }
 
+    if (needsNationalityAnalysis) {
+      promptText += `
+        Task 3: Nationality Analysis (Nationality is unknown).
+        - Scan the CV for explicit mentions of nationality, citizenship, or passport.
+        - If not explicitly stated, attempt to infer from phone number country codes or address, but be conservative.
+        - Set "nationality" to the extracted string (e.g., "Indian", "Pakistani", "British") or null if undetermined.
+        - Provide "nationalityReason".
+      `;
+    }
+
     promptText += `
       Output ONLY raw JSON object (no markdown) with this structure:
       {
         "hasUaeLicense": boolean, 
-        "licenseReason": "string",
-       ${
-         ifAgeAnalyzisIsRequired
-           ? `"estimatedAge": number, 
-            "isAgeBetween24And65": boolean, 
-            "ageReason": "string"`
-           : ''
-       }
-      }
-    `;
+        "licenseReason": "string"`;
+
+    if (needsAgeAnalysis) {
+      promptText += `,
+        "estimatedAge": number, 
+        "isAgeBetween24And65": boolean, 
+        "ageReason": "string"`;
+    }
+
+    if (needsNationalityAnalysis) {
+      promptText += `,
+        "nationality": string | null,
+        "nationalityReason": "string"`;
+    }
+
+    promptText += `
+      }`;
 
     const result = await this.model.generateContent({
       contents: [{ role: 'user', parts: [filePart, { text: promptText }] }],
