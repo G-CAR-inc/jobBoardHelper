@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -43,11 +43,11 @@ export class VertexRepository {
             {
               OR: [
                 { nationality: null },
-                // {
-                //   nationality: {
-                //     notIn: ['Pakistani', 'Bangladeshi'],
-                //   },
-                // },
+                {
+                  nationality: {
+                    notIn: ['Pakistani', 'Bangladeshi'],
+                  },
+                },
               ],
             },
             {
@@ -80,7 +80,6 @@ export class VertexRepository {
       rawResponse: any;
     },
   ) {
-    Logger.log({ nationalityReason: data.nationalityReason ,nationality:data.nationality});
     return this.prisma.applicationAnalysis.create({
       data: {
         applicationId,
