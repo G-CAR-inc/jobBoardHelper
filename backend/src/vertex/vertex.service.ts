@@ -30,9 +30,7 @@ export class VertexService implements OnModuleInit {
   }
   async analyze(force?: boolean) {
     const jobApplications = await this.repo.getAllJobApplications(force);
-    this.logger.log(`Analyzing ${jobApplications.length} isForced: ${force} applications...`);
-    this.logger.log(jobApplications.filter((app) => !app.applicant.nationality));
-    return;
+
     const results: any[] = [];
 
     for (const app of jobApplications) {
@@ -112,7 +110,11 @@ export class VertexService implements OnModuleInit {
     return Buffer.from(response.data);
   }
 
-  private async analyzeCvWithGemini(fileBuffer: Buffer, mimeType: string, currentAge: number | null) {
+  private async analyzeCvWithGemini(
+    fileBuffer: Buffer,
+    mimeType: string,
+    optionalAspectsToIvestigate?: { age?: number | null; nationality?: string | null },
+  ) {
     const filePart: Part = {
       inlineData: {
         data: fileBuffer.toString('base64'),
