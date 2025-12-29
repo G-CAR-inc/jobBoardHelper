@@ -23,7 +23,7 @@ describe('VertexService', () => {
   it(
     'should be defined',
     async () => {
-      await service.analyze();
+      await service.analyze(true);
     },
     60 * 1000,
   );

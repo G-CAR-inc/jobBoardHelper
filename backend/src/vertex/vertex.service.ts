@@ -30,8 +30,9 @@ export class VertexService implements OnModuleInit {
   }
   async analyze(force?: boolean) {
     const jobApplications = await this.repo.getAllJobApplications(force);
-    this.logger.log(`Analyzing ${jobApplications.length} applications...`);
-
+    this.logger.log(`Analyzing ${jobApplications.length} isForced: ${force} applications...`);
+    this.logger.log(jobApplications.filter((app) => !app.applicant.nationality));
+    return;
     const results: any[] = [];
 
     for (const app of jobApplications) {

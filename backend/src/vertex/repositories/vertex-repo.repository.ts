@@ -36,15 +36,24 @@ export class VertexRepository {
           is: null,
         },
         applicant: {
-          nationality: {
-            notIn: ['Pakistani', 'Bangladeshi'],
-          },
           visaStatus: {
             notIn: ['Not Applicable', 'Student'],
           },
-          AND: {
-            OR: [{ age: null }, { age: { gte: 24, lte: 65 } }],
-          },
+          AND: [
+            {
+              OR: [
+                { nationality: null },
+                {
+                  nationality: {
+                    notIn: ['Pakistani', 'Bangladeshi'],
+                  },
+                },
+              ],
+            },
+            {
+              OR: [{ age: null }, { age: { gte: 24, lte: 65 } }],
+            },
+          ],
         },
       },
     });
