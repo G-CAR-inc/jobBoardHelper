@@ -11,8 +11,7 @@ export interface LLMAnalysisResponse {
   licenseReason: string;
 
   // Age Fields (Optional)
-  estimatedAge?: number;
-  isAgeBetween24And65?: boolean;
+  estimatedYearOfBirth?: number;
   ageReason?: string;
 
   // Nationality Fields (Optional)
@@ -49,6 +48,7 @@ export class VertexService implements OnModuleInit {
     this.logger.log(`Analyzing ${jobApplications.length} applications...`);
 
     const results: any[] = [];
+    const currentYear = new Date().getFullYear();
 
     for (const app of jobApplications) {
       try {
@@ -83,15 +83,23 @@ export class VertexService implements OnModuleInit {
 
         // --- Age Logic ---
         const dbHasAge = applicant.age !== null;
-        const ageVerdict = dbHasAge ? true : analysisData.isAgeBetween24And65 === true;
-        const estimatedAge = dbHasAge ? applicant.age : analysisData.estimatedAge;
+        let estimatedAge: number | null = null;
+        let ageVerdict = false;
+
+        if (dbHasAge) {
+          estimatedAge = applicant.age;
+          ageVerdict = true; // Preserving original logic: if DB has age, assume valid/verified
+        } else if (analysisData.estimatedYearOfBirth) {
+          estimatedAge = currentYear - analysisData.estimatedYearOfBirth;
+          ageVerdict = estimatedAge >= 24 && estimatedAge <= 65;
+        }
 
         const ageReason = dbHasAge ? null : analysisData.ageReason || null;
 
         // --- Nationality Logic ---
         const dbHasNationality = !!applicant.nationality;
         const finalNationality = dbHasNationality ? applicant.nationality : analysisData.nationality;
-        const nationalityVerdict = finalNationality ? !['Pakistani', 'Bangladeshi'].includes(finalNationality!) : true;
+        const nationalityVerdict = finalNationality ? !/Pakistan|Bangladesh/i.test(finalNationality) : true;
 
         const nationalityReason = dbHasNationality ? null : analysisData.nationalityReason || null;
 
@@ -100,7 +108,6 @@ export class VertexService implements OnModuleInit {
 
         // --- Residence Logic ---
         const isUaeResident = applicant.country === 'United Arab Emirates';
-
 
         const flattenedData = {
           // Verdicts
@@ -174,9 +181,8 @@ export class VertexService implements OnModuleInit {
     if (needsAgeAnalysis) {
       promptText += `
         Task 2: Age Analysis (Age is unknown).
-        - Estimate if the candidate is currently between 24 and 65 years old based on graduation year (Bachelor's ~22yo) and experience.
-        - Set "isAgeBetween24And65" to true if they fall in this range.
-        - Output "estimatedAge" as a number.
+        - Estimate the candidate's Year of Birth (YoB) based on graduation year (Bachelor's ~22yo) and experience.
+        - Output "estimatedYearOfBirth" as a number (e.g., 1990).
         - Provide "ageReason".
       `;
     }
@@ -199,8 +205,7 @@ export class VertexService implements OnModuleInit {
 
     if (needsAgeAnalysis) {
       promptText += `,
-        "estimatedAge": number, 
-        "isAgeBetween24And65": boolean, 
+        "estimatedYearOfBirth": number, 
         "ageReason": "string"`;
     }
 
